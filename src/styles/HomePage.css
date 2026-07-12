@@ -200,7 +200,7 @@ body {
 /* ✅ KEY FIX: font-size reduced to match HTML (4rem not default browser large) */
 .hero-content h2 {
     font-family: 'Outfit', sans-serif;
-    font-size: 4rem;
+    font-size: 3.3rem;
     /* matches HTML exactly */
     font-weight: 900;
     line-height: 1.1;

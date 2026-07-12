@@ -4,46 +4,49 @@ import { useAuth } from '../context/AuthContext';
 import '../styles/LoginPage.css';
 
 const LoginPage = () => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
-    const [step, setStep] = useState('phone');
+    const [step, setStep] = useState('credentials'); // 'credentials' | 'otp'
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
-    const { sendOTP, verifyOTP } = useAuth();
+    const { loginWithPassword, sendOTP, verifyOTP } = useAuth();
     const navigate = useNavigate();
 
-    const handleSendOTP = async (e) => {
+    // Step 1: verify username/password, then trigger OTP send
+    const handleCredentialsSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage('');
 
-        let formattedPhone = phone.trim();
-        if (!formattedPhone.startsWith('+')) {
-            formattedPhone = '+' + formattedPhone;
+        const { phone: userPhone, error: loginError } = await loginWithPassword(username, password);
+
+        if (loginError) {
+            setMessage(`Error: ${loginError.message}`);
+            setLoading(false);
+            return;
         }
 
-        const { error } = await sendOTP(formattedPhone);
+        const { error: otpError } = await sendOTP(userPhone);
 
-        if (error) {
-            setMessage(`Error: ${error.message}`);
+        if (otpError) {
+            setMessage(`Error: ${otpError.message}`);
         } else {
+            setPhone(userPhone);
             setMessage('✓ Code sent! Check your phone.');
             setStep('otp');
         }
         setLoading(false);
     };
 
+    // Step 2: verify OTP
     const handleVerifyOTP = async (e) => {
         e.preventDefault();
         setLoading(true);
         setMessage('');
 
-        let formattedPhone = phone.trim();
-        if (!formattedPhone.startsWith('+')) {
-            formattedPhone = '+' + formattedPhone;
-        }
-
-        const { error } = await verifyOTP(formattedPhone, otp);
+        const { error } = await verifyOTP(phone, otp);
 
         if (error) {
             setMessage(`Error: ${error.message}`);
@@ -68,59 +71,73 @@ const LoginPage = () => {
 
             <div className="login-card">
 
-                {/* Logo Section */}
                 <div className="logo-section">
                     <div className="logo-icon-large">
                         <i className="fas fa-crown"></i>
                     </div>
-                    <h1 className="app-title">EKITIGOV360</h1>
+                    <h1 className="app-title">DiGoP</h1>
                     <p className="app-subtitle">COMMAND CENTER</p>
                 </div>
 
-                {/* Form Section */}
                 <div className="form-section">
                     <h2 className="form-title">
-                        {step === 'phone' ? 'Welcome back, Official' : 'Enter verification code'}
+                        {step === 'credentials' ? 'Welcome back, Official' : 'Enter verification code'}
                     </h2>
                     <p className="form-subtitle">
-                        {step === 'phone'
-                            ? 'Sign in with your phone number'
+                        {step === 'credentials'
+                            ? 'Sign in with your username and password'
                             : `We sent a 6-digit code to ${phone}`}
                     </p>
 
-                    {step === 'phone' ? (
-                        <form onSubmit={handleSendOTP}>
+                    {step === 'credentials' ? (
+                        <form onSubmit={handleCredentialsSubmit}>
                             <div className="input-group">
-                                <i className="fas fa-phone-alt input-icon"></i>
                                 <input
-                                    type="tel"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    placeholder="+2348012345678"
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    placeholder="Username"
+                                    required
+                                    className="form-input"
+                                    style={{ marginBottom: '1rem' }}
+                                />
+                            </div>
+                            <div className="input-group">
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Password"
                                     required
                                     className="form-input"
                                 />
                             </div>
-                            <p className="input-hint">
-                                Include country code (e.g., +234 for Nigeria)
-                            </p>
 
                             <button
                                 type="submit"
                                 disabled={loading}
                                 className="btn-primary btn-block"
+                                style={{ marginTop: '1.5rem' }}
                             >
                                 {loading ? (
                                     <>
                                         <i className="fas fa-spinner fa-spin"></i>
-                                        Sending...
+                                        Checking...
                                     </>
                                 ) : (
                                     <>
-                                        <i className="fas fa-paper-plane"></i>
-                                        Send Code
+                                        <i className="fas fa-sign-in-alt"></i>
+                                        Login
                                     </>
                                 )}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => navigate('/forgot-password')}
+                                className="btn-link"
+                            >
+                                Forgot password?
                             </button>
                         </form>
                     ) : (
@@ -161,19 +178,18 @@ const LoginPage = () => {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setStep('phone');
+                                    setStep('credentials');
                                     setMessage('');
                                     setOtp('');
                                 }}
                                 className="btn-link"
                             >
                                 <i className="fas fa-arrow-left"></i>
-                                Use different number
+                                Back to login
                             </button>
                         </form>
                     )}
 
-                    {/* Success / Error Message */}
                     {message && (
                         <div className={`message ${message.includes('Error') ? 'message-error' : 'message-success'}`}>
                             <i className={`fas ${message.includes('Error') ? 'fa-exclamation-circle' : 'fa-check-circle'}`}></i>
@@ -182,13 +198,11 @@ const LoginPage = () => {
                     )}
                 </div>
 
-                {/* Security Badge */}
                 <div className="security-badge">
                     <i className="fas fa-shield-alt"></i>
                     <span>Secured by Twilio · End-to-end encrypted</span>
                 </div>
 
-                {/* ✅ DEV BYPASS — remove entire block before going to production */}
                 <div className="dev-quick-link">
                     <button
                         type="button"

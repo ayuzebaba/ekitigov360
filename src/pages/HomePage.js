@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { departmentService } from '../services/departmentService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/HomePage.css';
@@ -48,10 +49,13 @@ const HomePage = () => {
                                 className="btn-primary"
                                 onClick={() => navigate('/login')}
                             >
-                                <i className="fas fa-sign-in-alt"></i> ENTER COMMAND CENTER
+                                <i className="fas fa-sign-in-alt"></i> CLICK TO LOGIN
                             </button>
-                            <button className="btn-outline">
-                                <i className="fas fa-play"></i> HOW IT WORKS
+                            <button
+                                className="btn-outline"
+                                onClick={() => navigate('/register')}
+                            >
+                                <i className="fas fa-user-plus"></i> REGISTER AS A NEW USER
                             </button>
                         </div>
                         <p className="hero-footer">

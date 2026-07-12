@@ -1,150 +1,108 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../services/supabase';
 import '../../styles/Header.css';
 
-const Header = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { user, signOut } = useAuth();
-    const [profileName, setProfileName] = useState(null);
-    const [profileRole, setProfileRole] = useState('');
+// Roles authorized to act on approvals — must match approvalService.js
+const APPROVAL_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight', 'governor'];
 
-    // Fetch real name from profiles table
-    useEffect(() => {
-        const fetchProfile = async () => {
-            if (user?.id) {
-                const { data } = await supabase
-                    .from('profiles')
-                    .select('full_name, role')
-                    .eq('id', user.id)
-                    .single();
-                if (data?.full_name) setProfileName(data.full_name);
-                if (data?.role) setProfileRole(data.role);
-            }
-        };
-        fetchProfile();
-    }, [user]);
+const ROLE_LABELS = {
+    citizen: 'Citizen',
+    department_staff: 'Department Staff',
+    lg_legislative: 'LG Legislative',
+    executive_chairman: 'Executive Chairman',
+    mda_oversight: 'MDA Oversight',
+    governor: 'Governor',
+    judiciary: 'Judiciary',
+    hoa: 'House of Assembly',
+};
+
+const Header = () => {
+    const { user, profile, signOut } = useAuth();
+    const navigate = useNavigate();
+
+    const canSeeApprovals = APPROVAL_ROLES.includes(profile?.role);
+    const roleLabel = ROLE_LABELS[profile?.role] || 'Official';
 
     const handleLogout = async () => {
         await signOut();
-        navigate('/');
-    };
-
-    const getInitials = () => {
-        if (profileName === null) return '';
-        const name = profileName || user?.user_metadata?.full_name;
-        if (name) {
-            const names = name.split(' ');
-            if (names.length >= 2) {
-                return (names[0][0] + names[1][0]).toUpperCase();
-            }
-            return name.substring(0, 2).toUpperCase();
-        }
-        return 'U';
-    };
-
-    const getUserDisplayName = () => {
-        if (profileName === null) return '';
-        return profileName || user?.user_metadata?.full_name || 'Official';
-    };
-
-    const isActive = (path) => {
-        return location.pathname === path;
+        navigate('/login');
     };
 
     return (
-        <nav className="navbar">
-            <div className="nav-container">
-                <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-                    <div className="logo-icon">
-                        <i className="fas fa-crown"></i>
-                    </div>
-                    <div className="logo-text">
-                        <h1>EKITIGOV360</h1>
-                        <p>COMMAND CENTER</p>
-                    </div>
-                </div>
-
-                <div className="nav-links">
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); navigate('/'); }}
-                        className={isActive('/') ? 'active' : ''}
-                    >
-                        Home
-                    </a>
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }}
-                        className={isActive('/dashboard') ? 'active' : ''}
-                    >
-                        Dashboard
-                    </a>
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); navigate('/projects'); }}
-                        className={isActive('/projects') ? 'active' : ''}
-                    >
-                        Projects
-                    </a>
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); navigate('/network'); }}
-                        className={isActive('/network') ? 'active' : ''}
-                    >
-                        Network
-                    </a>
-
-                    <a href="#"
-                        onClick={(e) => { e.preventDefault(); navigate('/sentiment'); }}
-                        className={isActive('/sentiment') ? 'active' : ''}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                    >
-                        <i className="fas fa-chart-line"></i> Sentiment
-                    </a>
-
-                    <a href="#"
-                        onClick={(e) => { e.preventDefault(); navigate('/benchmarking'); }}
-                        className={isActive('/benchmarking') ? 'active' : ''}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                    >
-                        <i className="fas fa-hands-helping"></i> Support
-                    </a>
-
-                    <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); navigate('/video-call'); }}
-                        className={isActive('/video-call') ? 'active' : ''}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                    >
-                        <i className="fas fa-video"></i> Video
-                    </a>
-
-                    {user ? (
-                        <div className="user-menu">
-                            <div className="user-avatar">
-                                {getInitials()}
-                            </div>
-                            {/*<span className="user-name">
-                                {getUserDisplayName()}
-                            </span>*/}
-                            <button className="logout-btn" onClick={handleLogout}>
-                                <i className="fas fa-sign-out-alt"></i> EXIT
-                            </button>
-                        </div>
-                    ) : (
-                        <button
-                            className="gov-badge"
-                            onClick={() => navigate('/login')}
-                        >
-                            <i className="fas fa-shield-alt"></i> LOGIN
-                        </button>
-                    )}
-                </div>
+        <>
+            <div className="header-banner">
+                Ekiti Digital Governance Platform
             </div>
-        </nav>
+            <header className="header">
+                <div className="header-container">
+                    <div className="header-left">
+                        <Link to="/dashboard" className="header-logo">
+                            <span className="logo-icon">🏛️</span>
+                            <span className="logo-text">DiGoP</span>
+                        </Link>
+                    </div>
+
+                    <nav className="header-nav">
+                        <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                            <i className="fas fa-home"></i> Home
+                        </NavLink>
+                        <NavLink to="/projects" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                            <i className="fas fa-project-diagram"></i> Projects
+                        </NavLink>
+                        <NavLink to="/departments" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                            <i className="fas fa-building"></i> Departments
+                        </NavLink>
+                        <NavLink to="/sentiment" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                            <i className="fas fa-chart-line"></i> Sentiment
+                        </NavLink>
+                        <NavLink to="/video-call" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                            <i className="fas fa-video"></i> Video
+                        </NavLink>
+                        <NavLink to="/network" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                            <i className="fas fa-network-wired"></i> Network
+                        </NavLink>
+                        {canSeeApprovals && (
+                            <NavLink to="/approvals" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                                <i className="fas fa-check-circle"></i> Approvals
+                            </NavLink>
+                        )}
+                        <NavLink to="/reports" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                            <i className="fas fa-chart-bar"></i> Reports
+                        </NavLink>
+                        {profile?.is_admin && (
+                            <NavLink to="/admin/users" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                                <i className="fas fa-users-cog"></i> Manage Users
+                            </NavLink>
+                        )}
+                    </nav>
+
+                    <div className="header-right">
+                        {user && (
+                            <div className="user-menu">
+                                <span className="user-name">
+                                    <i className="fas fa-user-circle"></i>
+                                    {roleLabel}
+                                    {profile?.is_admin && (
+                                        <span style={{
+                                            marginLeft: 6,
+                                            fontSize: '0.7rem',
+                                            background: '#016b40',
+                                            color: 'white',
+                                            padding: '2px 6px',
+                                            borderRadius: 6
+                                        }}>ADMIN</span>
+                                    )}
+                                </span>
+                                <button onClick={handleLogout} className="logout-btn">
+                                    <i className="fas fa-sign-out-alt"></i> EXIT
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </header>
+        </>
     );
 };
 

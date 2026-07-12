@@ -1,0 +1,38 @@
+.approval-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.8rem 0.3rem 0.3rem;
+    border-radius: 30px;
+    border: 1.5px solid;
+    background: white;
+}
+
+.approval-badge-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.7rem;
+}
+
+.approval-badge-content {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.approval-badge-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.approval-badge-level {
+    font-size: 0.65rem;
+    color: #6b7a8f;
+}

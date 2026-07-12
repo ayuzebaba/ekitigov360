@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
+import { departmentService } from '../services/departmentService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ProjectDetailPage.css';
@@ -17,44 +18,40 @@ const ProjectDetailPage = () => {
     const [activeTab, setActiveTab] = useState('details');
     const [updatingStatus, setUpdatingStatus] = useState(false);
 
-    // Upload states
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
     useEffect(() => {
-        console.log('📋 ProjectDetailPage mounted with ID:', id);
         fetchProjectDetails();
     }, [id]);
 
     const fetchProjectDetails = async () => {
         setLoading(true);
         try {
-            console.log('🔍 Fetching project details for ID:', id);
-
-            // Fetch project with related data
+            // FIXED: removed the `creator:created_by(id, full_name)` join.
+            // projects.created_by's foreign key now points to auth.users
+            // (not profiles), which is not exposed to the API and has no
+            // full_name column -- that join was causing a 400 error on
+            // every single project detail view, silently shown to users
+            // as "Project Not Found" instead of the real cause.
             const { data: projectData, error: projectError } = await supabase
                 .from('projects')
                 .select(`
                     *,
-                    lga:lga_id(id, full_name, lga),
-                    mda:mda_id(id, full_name, department),
-                    creator:created_by(id, full_name)
+                    lga:lga_id(id, full_name, lga)
                 `)
                 .eq('id', id)
                 .single();
 
             if (projectError) {
-                console.error('❌ Project fetch error:', projectError);
+                console.error('Project fetch error:', projectError);
                 throw projectError;
             }
 
-            console.log('✅ Project data loaded:', projectData);
             setProject(projectData);
 
-            // Fetch project updates
-            console.log('🔍 Fetching updates for project ID:', id);
             const { data: updatesData, error: updatesError } = await supabase
                 .from('project_updates')
                 .select(`
@@ -65,14 +62,11 @@ const ProjectDetailPage = () => {
                 .order('created_at', { ascending: false });
 
             if (updatesError) {
-                console.error('❌ Updates fetch error:', updatesError);
+                console.error('Updates fetch error:', updatesError);
             } else {
-                console.log('✅ Updates loaded:', updatesData?.length || 0, updatesData);
                 setUpdates(updatesData || []);
             }
 
-            // Fetch project documents
-            console.log('🔍 Fetching documents for project ID:', id);
             const { data: docsData, error: docsError } = await supabase
                 .from('project_documents')
                 .select('*')
@@ -80,14 +74,13 @@ const ProjectDetailPage = () => {
                 .order('created_at', { ascending: false });
 
             if (docsError) {
-                console.error('❌ Documents fetch error:', docsError);
+                console.error('Documents fetch error:', docsError);
             } else {
-                console.log('✅ Documents loaded:', docsData?.length || 0, docsData);
                 setDocuments(docsData || []);
             }
 
         } catch (error) {
-            console.error('❌ Error in fetchProjectDetails:', error);
+            console.error('Error in fetchProjectDetails:', error);
         } finally {
             setLoading(false);
         }
@@ -100,9 +93,6 @@ const ProjectDetailPage = () => {
 
         setUpdatingStatus(true);
         try {
-            console.log('🔄 Updating status to:', newStatus);
-
-            // Update project status
             const { error } = await supabase
                 .from('projects')
                 .update({
@@ -113,7 +103,6 @@ const ProjectDetailPage = () => {
 
             if (error) throw error;
 
-            // Create a status update record
             const { error: updateError } = await supabase
                 .from('project_updates')
                 .insert([{
@@ -126,13 +115,10 @@ const ProjectDetailPage = () => {
 
             if (updateError) throw updateError;
 
-            console.log('✅ Status updated successfully');
-
-            // Refresh data
             await fetchProjectDetails();
             alert('Status updated successfully!');
         } catch (error) {
-            console.error('❌ Error updating status:', error);
+            console.error('Error updating status:', error);
             alert('Error updating status');
         } finally {
             setUpdatingStatus(false);
@@ -143,8 +129,6 @@ const ProjectDetailPage = () => {
         if (!window.confirm('Are you sure you want to delete this project?')) return;
 
         try {
-            console.log('🗑️ Deleting project:', id);
-
             const { error } = await supabase
                 .from('projects')
                 .delete()
@@ -152,16 +136,14 @@ const ProjectDetailPage = () => {
 
             if (error) throw error;
 
-            console.log('✅ Project deleted successfully');
             alert('Project deleted successfully!');
             navigate('/projects');
         } catch (error) {
-            console.error('❌ Error deleting project:', error);
+            console.error('Error deleting project:', error);
             alert('Error deleting project');
         }
     };
 
-    // Handle file upload
     const handleFileChange = (e) => {
         setUploadFile(e.target.files[0]);
     };
@@ -176,9 +158,6 @@ const ProjectDetailPage = () => {
         setUploadProgress(0);
 
         try {
-            console.log('📎 Uploading document:', uploadFile.name);
-
-            // Create a progress simulation (since Supabase doesn't have built-in progress)
             const progressInterval = setInterval(() => {
                 setUploadProgress(prev => {
                     if (prev >= 90) {
@@ -192,8 +171,7 @@ const ProjectDetailPage = () => {
             const fileExt = uploadFile.name.split('.').pop();
             const fileName = `projects/${id}/doc_${Date.now()}.${fileExt}`;
 
-            // Upload file to storage
-            const { error: uploadError, data: uploadData } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
                 .from('EkitiGov360-documents')
                 .upload(fileName, uploadFile);
 
@@ -202,12 +180,10 @@ const ProjectDetailPage = () => {
 
             if (uploadError) throw uploadError;
 
-            // Get public URL
             const { data: urlData } = supabase.storage
                 .from('EkitiGov360-documents')
                 .getPublicUrl(fileName);
 
-            // Create record in project_documents table
             const { error: docError } = await supabase
                 .from('project_documents')
                 .insert([{
@@ -221,20 +197,16 @@ const ProjectDetailPage = () => {
 
             if (docError) throw docError;
 
-            console.log('✅ Document uploaded successfully');
-
-            // Reset and refresh
             setUploadFile(null);
             setShowUploadModal(false);
             setUploadProgress(0);
 
-            // Refresh documents list
             await fetchProjectDetails();
 
             alert('Document uploaded successfully!');
 
         } catch (error) {
-            console.error('❌ Error uploading document:', error);
+            console.error('Error uploading document:', error);
             alert(`Error uploading document: ${error.message}`);
         } finally {
             setUploading(false);
@@ -246,18 +218,15 @@ const ProjectDetailPage = () => {
         if (!window.confirm('Are you sure you want to delete this document?')) return;
 
         try {
-            // Extract file path from URL
             const urlParts = docUrl.split('/');
             const filePath = urlParts.slice(urlParts.indexOf('EkitiGov360-documents') + 1).join('/');
 
-            // Delete from storage
             const { error: storageError } = await supabase.storage
                 .from('EkitiGov360-documents')
                 .remove([filePath]);
 
             if (storageError) throw storageError;
 
-            // Delete from database
             const { error: dbError } = await supabase
                 .from('project_documents')
                 .delete()
@@ -265,15 +234,12 @@ const ProjectDetailPage = () => {
 
             if (dbError) throw dbError;
 
-            console.log('✅ Document deleted successfully');
-
-            // Refresh documents list
             await fetchProjectDetails();
 
             alert('Document deleted successfully!');
 
         } catch (error) {
-            console.error('❌ Error deleting document:', error);
+            console.error('Error deleting document:', error);
             alert('Error deleting document');
         }
     };
@@ -359,7 +325,6 @@ const ProjectDetailPage = () => {
 
             <main className="detail-main">
                 <div className="container">
-                    {/* Navigation Bar */}
                     <div className="detail-nav">
                         <button
                             className="back-btn"
@@ -383,7 +348,6 @@ const ProjectDetailPage = () => {
                         </div>
                     </div>
 
-                    {/* Project Header with Status Dropdown */}
                     <div className="project-header-card">
                         <div className="project-title-section">
                             <h1 className="project-title">{project.title}</h1>
@@ -417,7 +381,6 @@ const ProjectDetailPage = () => {
                         <p className="project-description">{project.description}</p>
                     </div>
 
-                    {/* Tabs */}
                     <div className="detail-tabs">
                         <button
                             className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
@@ -439,9 +402,7 @@ const ProjectDetailPage = () => {
                         </button>
                     </div>
 
-                    {/* Tab Content */}
                     <div className="tab-content-container">
-                        {/* DETAILS TAB */}
                         {activeTab === 'details' && (
                             <div className="details-tab">
                                 <div className="info-grid">
@@ -454,10 +415,6 @@ const ProjectDetailPage = () => {
                                         <div className="info-row">
                                             <span className="info-label">MDA:</span>
                                             <span className="info-value">{project.mda?.department || project.mda?.full_name || 'Not assigned'}</span>
-                                        </div>
-                                        <div className="info-row">
-                                            <span className="info-label">Created by:</span>
-                                            <span className="info-value">{project.creator?.full_name || 'System'}</span>
                                         </div>
                                     </div>
 
@@ -504,7 +461,6 @@ const ProjectDetailPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Progress Section */}
                                 <div className="progress-section">
                                     <h3><i className="fas fa-chart-line"></i> Progress</h3>
                                     <div className="progress-display">
@@ -542,7 +498,6 @@ const ProjectDetailPage = () => {
                             </div>
                         )}
 
-                        {/* UPDATES TAB */}
                         {activeTab === 'updates' && (
                             <div className="updates-tab">
                                 <div className="updates-header">
@@ -595,7 +550,6 @@ const ProjectDetailPage = () => {
                             </div>
                         )}
 
-                        {/* DOCUMENTS TAB */}
                         {activeTab === 'documents' && (
                             <div className="documents-tab">
                                 <div className="documents-header">
@@ -651,7 +605,6 @@ const ProjectDetailPage = () => {
                 </div>
             </main>
 
-            {/* Upload Modal */}
             {showUploadModal && (
                 <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>

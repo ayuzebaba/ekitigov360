@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
+import { departmentService } from '../services/departmentService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ProjectsPage.css';
@@ -35,12 +36,10 @@ const ProjectsPage = () => {
                 .select(`
                     *,
                     lga:lga_id(full_name, lga),
-                    mda:mda_id(full_name, department),
-                    creator:created_by(full_name)
+                    department:department_id(id, name)
                 `)
                 .order('created_at', { ascending: false });
 
-            // Apply filters
             if (filters.status) query = query.eq('status', filters.status);
             if (filters.lga_id) query = query.eq('lga_id', filters.lga_id);
             if (filters.search) {
@@ -59,10 +58,10 @@ const ProjectsPage = () => {
     };
 
     const fetchLgas = async () => {
-        const { data } = await supabase
-            .from('profiles')
-            .select('id, full_name, lga')
-            .eq('role', 'chairman');
+        // FIXED: was querying `profiles` for role = 'chairman' (stale
+        // table/role). Now uses a security-definer RPC that reads
+        // ekiti_users for role = 'executive_chairman' instead.
+        const { data } = await supabase.rpc('get_chairmen_directory');
         setLgas(data || []);
     };
 
@@ -122,7 +121,6 @@ const ProjectsPage = () => {
 
             <main className="projects-main">
                 <div className="container">
-                    {/* Header with title and new button */}
                     <div className="projects-header">
                         <div>
                             <h1 className="projects-title">
@@ -142,7 +140,6 @@ const ProjectsPage = () => {
                         </button>
                     </div>
 
-                    {/* Filters */}
                     <div className="filters-section">
                         <div className="search-box">
                             <i className="fas fa-search"></i>
@@ -189,7 +186,6 @@ const ProjectsPage = () => {
                         </button>
                     </div>
 
-                    {/* Projects List */}
                     {loading ? (
                         <div className="loading-state">
                             <i className="fas fa-spinner fa-spin"></i>
@@ -238,7 +234,7 @@ const ProjectsPage = () => {
                                         </div>
                                         <div className="detail-item">
                                             <i className="fas fa-building"></i>
-                                            <span>{project.mda?.department || 'N/A'}</span>
+                                            <span>{project.department?.name || 'N/A'}</span>
                                         </div>
                                         <div className="detail-item">
                                             <i className="fas fa-coins"></i>
@@ -311,4 +307,4 @@ const ProjectsPage = () => {
     );
 };
 
-export default ProjectsPage; 
+export default ProjectsPage;

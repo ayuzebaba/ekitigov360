@@ -1,17 +1,36 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from '../services/supabase';
+import { departmentService } from '../services/departmentService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
-
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ICE_SERVERS = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+        // TURN server -- required for reliable connections on real mobile
+        // networks / strict NATs where a direct peer-to-peer (STUN-only)
+        // connection can't be established or holds only briefly. This is
+        // the likely cause of "connects, then drops after ~1 minute".
+        // Using a free public TURN relay for now; for production, a
+        // paid/dedicated TURN service is recommended (free relays have
+        // limited capacity and no uptime guarantee).
+        {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+        },
+        {
+            urls: "turn:openrelay.metered.ca:443",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+        },
+        {
+            urls: "turn:openrelay.metered.ca:443?transport=tcp",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+        },
     ],
 };
 
@@ -113,9 +132,48 @@ const VideoCallPage = () => {
             }
         };
         pc.onconnectionstatechange = () => {
-            if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+            if (pc.connectionState === "disconnected") {
+                // Don't immediately give up -- "disconnected" can be
+                // transient (brief WiFi hiccup, mobile network switch).
+                // Try an ICE restart, which renegotiates the connection
+                // path without tearing down the whole call.
+                setStatusMsg("Connection unstable, attempting to reconnect...");
+                try {
+                    pc.restartIce();
+                } catch (e) {
+                    console.error("ICE restart failed:", e);
+                }
+            } else if (pc.connectionState === "failed") {
                 setConnected(false);
-                setStatusMsg("Connection lost...");
+                setStatusMsg("Connection lost.");
+            } else if (pc.connectionState === "connected") {
+                setConnected(true);
+                setStatusMsg("Connected");
+            }
+        };
+        // FIXED: pc.restartIce() only *flags* that renegotiation is
+        // needed -- it does not, by itself, create and exchange a new
+        // offer/answer. Without this handler, the ICE restart attempt
+        // above was silently doing nothing, which is why the connection
+        // kept dropping back to "Connecting" a few seconds after briefly
+        // recovering. Only the original call-starter (host) initiates
+        // renegotiation, to avoid both sides renegotiating at once and
+        // colliding (a simplified version of the standard WebRTC
+        // "perfect negotiation" pattern).
+        pc.onnegotiationneeded = async () => {
+            if (!host) return;
+            try {
+                const offer = await pc.createOffer({ iceRestart: true });
+                await pc.setLocalDescription(offer);
+                if (channelRef.current) {
+                    channelRef.current.send({
+                        type: "broadcast",
+                        event: "reconnect-offer",
+                        payload: { offer },
+                    });
+                }
+            } catch (e) {
+                console.error("Renegotiation offer failed:", e);
             }
         };
         return pc;
@@ -137,6 +195,17 @@ const VideoCallPage = () => {
         channel.on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (pc.signalingState === "have-local-offer") {
                 await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+            }
+        });
+        // Reconnect answer -- the guest's response to our ICE-restart
+        // renegotiation offer (sent from onnegotiationneeded above).
+        channel.on("broadcast", { event: "reconnect-answer" }, async ({ payload }) => {
+            if (pc.signalingState === "have-local-offer") {
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                } catch (e) {
+                    console.error("Failed to apply reconnect answer:", e);
+                }
             }
         });
         channel.on("broadcast", { event: "ice" }, async ({ payload }) => {
@@ -184,6 +253,19 @@ const VideoCallPage = () => {
                 try { await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch { }
             }
         });
+        // Reconnect offer -- the host renegotiating after an ICE
+        // restart (see onnegotiationneeded in createPC). Respond with a
+        // fresh answer the same way the initial call was answered.
+        channel.on("broadcast", { event: "reconnect-offer" }, async ({ payload }) => {
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                channel.send({ type: "broadcast", event: "reconnect-answer", payload: { answer } });
+            } catch (e) {
+                console.error("Failed to handle reconnect offer:", e);
+            }
+        });
         await channel.subscribe(async (status) => {
             if (status === "SUBSCRIBED") {
                 await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -204,7 +286,7 @@ const VideoCallPage = () => {
         setRoomId("");
         setInputRoom("");
         setStatusMsg("");
-        setShowMinutes(true); // ← show minutes popup after call!!
+        setShowMinutes(true);
     };
 
     const toggleMic = () => {
@@ -333,7 +415,6 @@ Write in formal Nigerian government language. Be concise and professional.`
                 }
             `}</style>
 
-            {/* Incoming call banner */}
             {incomingCall && (
                 <div style={{
                     position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
@@ -373,7 +454,6 @@ Write in formal Nigerian government language. Be concise and professional.`
 
             <main style={{ padding: '2rem 5%', maxWidth: 1000, margin: '0 auto' }}>
 
-                {/* Page title */}
                 <div style={{ marginBottom: '1.5rem' }}>
                     <h1 style={{
                         fontFamily: 'Outfit, sans-serif', fontSize: '2rem',
@@ -387,10 +467,8 @@ Write in formal Nigerian government language. Be concise and professional.`
                     </p>
                 </div>
 
-                {/* LOBBY */}
                 {screen === 'lobby' && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                        {/* Start call card */}
                         <div style={{
                             background: 'white', border: '1px solid black',
                             borderRadius: 24, padding: '2rem',
@@ -453,7 +531,6 @@ Write in formal Nigerian government language. Be concise and professional.`
                             </button>
                         </div>
 
-                        {/* Info card */}
                         <div style={{
                             background: 'linear-gradient(145deg, #1e3a5f, #0a1f3a)',
                             border: '1px solid rgba(255,255,255,0.1)',
@@ -482,7 +559,6 @@ Write in formal Nigerian government language. Be concise and professional.`
                     </div>
                 )}
 
-                {/* WAITING */}
                 {screen === 'waiting' && (
                     <div style={{
                         background: 'white', border: '1px solid black',
@@ -521,7 +597,6 @@ Write in formal Nigerian government language. Be concise and professional.`
                     </div>
                 )}
 
-                {/* CALL SCREEN */}
                 {screen === 'call' && (
                     <div>
                         <div style={{
@@ -578,7 +653,6 @@ Write in formal Nigerian government language. Be concise and professional.`
                             </div>
                         </div>
 
-                        {/* Controls */}
                         <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
                             <button onClick={toggleMic} title={micOn ? "Mute" : "Unmute"} style={{
                                 width: 52, height: 52, borderRadius: '50%',
@@ -616,7 +690,6 @@ Write in formal Nigerian government language. Be concise and professional.`
                     </div>
                 )}
 
-                {/* AI MEETING MINUTES MODAL */}
                 {showMinutes && (
                     <div style={{
                         position: 'fixed', inset: 0,

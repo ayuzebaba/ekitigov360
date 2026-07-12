@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { departmentService } from '../services/departmentService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 

@@ -1,10 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { departmentService } from '../services/departmentService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import '../styles/MessagesPage.css';
+
+const ROLE_LABELS = {
+    citizen: 'Citizen',
+    department_staff: 'Department Staff',
+    lg_legislative: 'LG Legislative',
+    executive_chairman: 'Executive Chairman',
+    mda_oversight: 'MDA Oversight',
+    governor: 'Governor',
+    judiciary: 'Judiciary',
+    hoa: 'House of Assembly',
+};
+
+const ROLE_COLORS = {
+    governor: '#1e3a5f',
+    mda_oversight: '#016b40',
+    executive_chairman: '#f57c00',
+    lg_legislative: '#9c27b0',
+    department_staff: '#4a8c6f',
+};
 
 const MessagesPage = () => {
     const { userId } = useParams();
@@ -34,12 +54,17 @@ const MessagesPage = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const { data: userData } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-            setOtherUser(userData);
+            // FIXED: was querying the legacy `profiles` table by id, which
+            // no longer matches this page's userId param (that param is
+            // now a real Supabase Auth id, coming from NetworkPage's
+            // get_officials_directory() RPC). Uses the same directory RPC
+            // here and finds the matching entry by auth_id instead.
+            const { data: directory, error: dirError } = await supabase.rpc('get_officials_directory');
+            if (dirError) {
+                console.error('Error fetching officials directory:', dirError);
+            }
+            const match = (directory || []).find(o => o.auth_id === userId);
+            setOtherUser(match ? { ...match, id: match.auth_id } : null);
 
             const { data: messagesData } = await supabase
                 .from('messages')
@@ -49,7 +74,6 @@ const MessagesPage = () => {
 
             setMessages(messagesData || []);
 
-            // Mark messages as read
             await supabase
                 .from('messages')
                 .update({ read: true })
@@ -109,26 +133,8 @@ const MessagesPage = () => {
         }
     };
 
-    const getRoleLabel = (role) => {
-        const labels = {
-            governor: 'Executive Governor',
-            commissioner: 'Commissioner',
-            chairman: 'LGA Chairman',
-            admin: 'Administrator',
-            official: 'Government Official'
-        };
-        return labels[role] || role || 'Government Official';
-    };
-
-    const getRoleColor = (role) => {
-        const colors = {
-            governor: '#1e3a5f',
-            commissioner: '#016b40',
-            chairman: '#f57c00',
-            admin: '#9c27b0',
-        };
-        return colors[role] || '#016b40';
-    };
+    const getRoleLabel = (role) => ROLE_LABELS[role] || role || 'Government Official';
+    const getRoleColor = (role) => ROLE_COLORS[role] || '#016b40';
 
     const getInitials = (name) => {
         if (!name) return 'G';
@@ -195,7 +201,6 @@ const MessagesPage = () => {
                 <div className="container">
                     <div className="messages-card">
 
-                        {/* Chat Header */}
                         <div className="chat-header">
                             <button className="back-btn" onClick={() => navigate('/network')}>
                                 <i className="fas fa-arrow-left"></i>
@@ -204,7 +209,7 @@ const MessagesPage = () => {
                                 {getInitials(otherUser.full_name)}
                             </div>
                             <div className="chat-user-info">
-                                <h3>{otherUser.full_name}</h3>
+                                <h3>{otherUser.full_name || otherUser.username}</h3>
                                 <p style={{ color: roleColor }}>
                                     <i className="fas fa-shield-alt"></i>
                                     {getRoleLabel(otherUser.role)}
@@ -222,14 +227,13 @@ const MessagesPage = () => {
                             </div>
                         </div>
 
-                        {/* Messages Container */}
                         <div className="messages-container">
                             {messages.length === 0 ? (
                                 <div className="empty-messages">
                                     <div className="empty-avatar" style={{ background: roleColor }}>
                                         {getInitials(otherUser.full_name)}
                                     </div>
-                                    <h3>{otherUser.full_name}</h3>
+                                    <h3>{otherUser.full_name || otherUser.username}</h3>
                                     <p>{getRoleLabel(otherUser.role)}</p>
                                     <p className="empty-hint">Send a secure message to start the conversation</p>
                                 </div>
@@ -266,7 +270,6 @@ const MessagesPage = () => {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Message Input */}
                         <form className="message-input-form" onSubmit={handleSendMessage}>
                             <div className="input-wrapper">
                                 <input

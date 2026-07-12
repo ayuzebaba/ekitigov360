@@ -1,0 +1,343 @@
+/* AuditPage.css - Sage Green Version */
+
+.audit-page {
+    min-height: 100vh;
+    background-color: #f4f7fc;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.bg-pattern {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(rgba(74, 140, 111, 0.08) 2px, transparent 2px);
+    background-size: 40px 40px;
+    z-index: -2;
+}
+
+.gradient-orb {
+    position: fixed;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle at 30% 50%, rgba(74, 140, 111, 0.12), transparent 70%);
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    top: -200px;
+    right: -100px;
+}
+
+.gradient-orb-2 {
+    bottom: -150px;
+    left: -100px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(74, 140, 111, 0.06), transparent 80%);
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: -1;
+}
+
+.audit-main {
+    padding: 2rem 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 5%;
+}
+
+.audit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.audit-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #001f1a;
+    margin-bottom: 0.3rem;
+}
+
+.audit-title i {
+    color: #4a8c6f;
+    margin-right: 0.8rem;
+}
+
+.audit-subtitle {
+    color: #4b6b68;
+    font-size: 0.95rem;
+}
+
+.filters-section {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 20px;
+    border: 1.5px solid rgba(0, 0, 0, 0.15);
+    box-shadow: 0 5px 20px -10px rgba(0, 0, 0, 0.1);
+}
+
+.search-box {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border-radius: 40px;
+    padding: 0 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.search-box i {
+    color: #4b6b68;
+    margin-right: 0.5rem;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 0.8rem 0;
+    border: none;
+    background: transparent;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.filter-select {
+    padding: 0 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 40px;
+    background: white;
+    min-width: 150px;
+    font-size: 0.95rem;
+    color: #1e2f4a;
+}
+
+.btn-text {
+    background: transparent;
+    border: none;
+    color: #4b6b68;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 1rem;
+}
+
+.btn-text:hover {
+    color: #4a8c6f;
+}
+
+.audit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.audit-item {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    border: 1.5px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 16px -8px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s;
+}
+
+.audit-item:hover {
+    border-color: rgba(0, 0, 0, 0.25);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
+}
+
+.audit-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.audit-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.audit-user i {
+    font-size: 1.5rem;
+    color: #4a8c6f;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #001f1a;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: #4b6b68;
+    background: #f0f2f5;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+}
+
+.action-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: white;
+}
+
+.audit-item-body {
+    padding-left: 2.5rem;
+}
+
+.audit-description {
+    margin: 0 0 0.5rem 0;
+    color: #1e2f4a;
+    font-size: 0.95rem;
+}
+
+.audit-description strong {
+    color: #001f1a;
+}
+
+.audit-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.5rem 0;
+    padding: 0.5rem 1rem;
+    background: #f8fafc;
+    border-radius: 10px;
+    font-size: 0.85rem;
+}
+
+.change-old,
+.change-new {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.change-label {
+    font-weight: 600;
+    color: #4b6b68;
+    min-width: 50px;
+}
+
+.change-value.old {
+    color: #c62828;
+}
+
+.change-value.new {
+    color: #2e7d32;
+}
+
+.audit-meta {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #6b7a8f;
+}
+
+.audit-meta i {
+    margin-right: 0.3rem;
+}
+
+.audit-record,
+.audit-time {
+    display: flex;
+    align-items: center;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 30px;
+    border: 1.5px solid rgba(0, 0, 0, 0.15);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: #4a8c6f;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    color: #001f1a;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #4b6b68;
+}
+
+.loading-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 30px;
+    border: 1.5px solid rgba(0, 0, 0, 0.15);
+}
+
+.loading-state i {
+    font-size: 2rem;
+    color: #4a8c6f;
+    margin-bottom: 1rem;
+}
+
+.loading-state p {
+    color: #4b6b68;
+}
+
+@media (max-width: 768px) {
+    .filters-section {
+        flex-direction: column;
+    }
+
+    .search-box {
+        width: 100%;
+    }
+
+    .filter-select {
+        width: 100%;
+    }
+
+    .audit-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .audit-item-body {
+        padding-left: 0;
+    }
+
+    .audit-meta {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .container {
+        padding: 0 1rem;
+    }
+}

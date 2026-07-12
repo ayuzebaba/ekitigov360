@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
+import { logProjectAction } from '../services/auditService';
+import { routeProjectForApproval, needsApproval } from '../services/approvalService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ProjectFormPage.css';
@@ -11,26 +13,17 @@ const ProjectFormPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    // 🔍 LOG THE USER OBJECT RIGHT AWAY
-    console.log('🔍 AUTH USER DETAILS:', {
-        id: user?.id,
-        email: user?.email,
-        phone: user?.phone,
-        user_metadata: user?.user_metadata,
-        full_user: user
-    });
-
     const [activeTab, setActiveTab] = useState(1);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
     const [lgas, setLgas] = useState([]);
-    const [mdas, setMdas] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const [boqFile, setBoqFile] = useState(null);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
         lga_id: '',
-        mda_id: '',
+        department_id: '',
         budget_amount: '',
         contractor: '',
         start_date: '',
@@ -43,41 +36,35 @@ const ProjectFormPage = () => {
     });
 
     useEffect(() => {
-        console.log('👤 Current user from useAuth:', user);
-        console.log('🔑 User ID:', user?.id);
-        fetchLgasAndMdas();
+        fetchLgasAndDepartments();
         if (id) {
             fetchProject();
         }
     }, [id, user]);
 
-    const fetchLgasAndMdas = async () => {
-        console.log('📋 Fetching LGAs and MDAs...');
+    const fetchLgasAndDepartments = async () => {
+        // FIXED: was querying `profiles` for role = 'chairman', which is
+        // stale (that table/role no longer reflects real users). Now uses
+        // a security-definer RPC that reads ekiti_users for
+        // role = 'executive_chairman', bypassing the "own row only" RLS
+        // restriction narrowly and correctly for this legitimate lookup.
+        const { data: lgaData, error: lgaError } = await supabase.rpc('get_chairmen_directory');
 
-        const { data: lgaData, error: lgaError } = await supabase
-            .from('profiles')
-            .select('id, full_name, lga')
-            .eq('role', 'chairman');
-
-        if (lgaError) console.error('❌ Error fetching LGAs:', lgaError);
+        if (lgaError) console.error('Error fetching LGAs:', lgaError);
         setLgas(lgaData || []);
-        console.log('✅ LGAs loaded:', lgaData?.length);
 
-        const { data: mdaData, error: mdaError } = await supabase
-            .from('profiles')
-            .select('id, full_name, department')
-            .eq('role', 'commissioner');
+        const { data: deptData, error: deptError } = await supabase
+            .from('departments')
+            .select('id, name')
+            .order('name');
 
-        if (mdaError) console.error('❌ Error fetching MDAs:', mdaError);
-        setMdas(mdaData || []);
-        console.log('✅ MDAs loaded:', mdaData?.length);
+        if (deptError) console.error('Error fetching departments:', deptError);
+        setDepartments(deptData || []);
     };
 
     const fetchProject = useCallback(async () => {
         setFetching(true);
         try {
-            console.log('📋 Fetching project with ID:', id);
-
             const { data, error } = await supabase
                 .from('projects')
                 .select('*')
@@ -86,14 +73,12 @@ const ProjectFormPage = () => {
 
             if (error) throw error;
 
-            console.log('✅ Project loaded:', data);
-
             if (data) {
                 setFormData({
                     title: data.title || '',
                     description: data.description || '',
                     lga_id: data.lga_id || '',
-                    mda_id: data.mda_id || '',
+                    department_id: data.department_id || '',
                     budget_amount: data.budget_amount || '',
                     contractor: data.contractor || '',
                     start_date: data.start_date || '',
@@ -106,7 +91,7 @@ const ProjectFormPage = () => {
                 });
             }
         } catch (error) {
-            console.error('❌ Error fetching project:', error);
+            console.error('Error fetching project:', error);
         } finally {
             setFetching(false);
         }
@@ -128,24 +113,15 @@ const ProjectFormPage = () => {
         setLoading(true);
 
         try {
-            // Log user information first
-            console.log('👤 USER VERIFICATION:', {
-                userExists: !!user,
-                userId: user?.id,
-                userEmail: user?.email,
-                userMetadata: user?.user_metadata
-            });
-
             if (!user?.id) {
                 throw new Error('No authenticated user found! Please log in again.');
             }
 
-            // Prepare data - convert empty strings to null for UUID fields
             const projectData = {
                 title: formData.title || '',
                 description: formData.description || '',
                 lga_id: formData.lga_id || null,
-                mda_id: formData.mda_id || null,
+                department_id: formData.department_id || null,
                 budget_amount: formData.budget_amount ? parseFloat(formData.budget_amount) : 0,
                 contractor: formData.contractor || null,
                 start_date: formData.start_date || null,
@@ -158,17 +134,14 @@ const ProjectFormPage = () => {
                 updated_at: new Date().toISOString()
             };
 
-            console.log('📤 PROJECT DATA TO SUBMIT:', {
-                projectData,
-                isEdit: !!id,
-                userId: user.id
-            });
-
             let projectId = id;
 
             if (id) {
-                // Update existing project
-                console.log('🔄 UPDATING project ID:', id);
+                const { data: oldData } = await supabase
+                    .from('projects')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
 
                 const { data, error } = await supabase
                     .from('projects')
@@ -176,19 +149,38 @@ const ProjectFormPage = () => {
                     .eq('id', id)
                     .select();
 
-                console.log('📥 UPDATE RESPONSE:', { data, error });
-
                 if (error) throw error;
+
+                await logProjectAction(
+                    user.id,
+                    'UPDATE',
+                    id,
+                    oldData,
+                    projectData
+                );
+
+                if (oldData && oldData.budget_amount !== projectData.budget_amount) {
+                    const { needsApproval: needsApprovalResult, error: approvalCheckError } = await needsApproval(projectData.budget_amount || 0);
+                    if (!approvalCheckError && needsApprovalResult) {
+                        const { data: routeData, error: routeError } = await routeProjectForApproval(
+                            id,
+                            projectData.budget_amount || 0
+                        );
+                        if (routeError) {
+                            console.error('Error routing project for approval:', routeError);
+                        } else {
+                            alert('Project updated! Budget change requires re-approval.');
+                        }
+                    }
+                }
+
                 alert('Project updated successfully!');
             } else {
-                // Create new project
                 const insertData = {
                     ...projectData,
                     created_by: user.id,
                     created_at: new Date().toISOString()
                 };
-
-                console.log('➕ INSERTING new project:', insertData);
 
                 const { data, error } = await supabase
                     .from('projects')
@@ -196,32 +188,52 @@ const ProjectFormPage = () => {
                     .select()
                     .single();
 
-                console.log('📥 INSERT RESPONSE:', { data, error });
-
                 if (error) throw error;
                 projectId = data.id;
-                alert('Project created successfully!');
+
+                await logProjectAction(
+                    user.id,
+                    'CREATE',
+                    projectId,
+                    null,
+                    insertData
+                );
+
+                const { needsApproval: needsApprovalResult, error: approvalCheckError } = await needsApproval(projectData.budget_amount || 0);
+                if (!approvalCheckError && needsApprovalResult) {
+                    const { data: routeData, error: routeError } = await routeProjectForApproval(
+                        projectId,
+                        projectData.budget_amount || 0
+                    );
+                    if (routeError) {
+                        console.error('Error routing project for approval:', routeError);
+                        alert('Project created but approval routing failed. Please check console.');
+                    } else {
+                        alert('Project created! Waiting for approval.');
+                    }
+                } else {
+                    await supabase
+                        .from('projects')
+                        .update({ status: 'approved' })
+                        .eq('id', projectId);
+                    alert('Project created successfully!');
+                }
             }
 
-            // Upload BOQ if provided
             if (boqFile && projectId) {
-                console.log('📎 Uploading BOQ file:', boqFile.name);
-
                 const fileExt = boqFile.name.split('.').pop();
                 const fileName = `projects/${projectId}/boq_${Date.now()}.${fileExt}`;
 
-                const { error: uploadError, data: uploadData } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from('EkitiGov360-documents')
                     .upload(fileName, boqFile);
 
                 if (uploadError) throw uploadError;
 
-                // Get public URL
                 const { data: urlData } = supabase.storage
                     .from('EkitiGov360-documents')
                     .getPublicUrl(fileName);
 
-                // ✅ Create record in project_documents table
                 const { error: docError } = await supabase
                     .from('project_documents')
                     .insert([{
@@ -234,39 +246,12 @@ const ProjectFormPage = () => {
                     }]);
 
                 if (docError) throw docError;
-
-                console.log('✅ BOQ uploaded and linked to project successfully');
             }
 
             navigate('/projects');
         } catch (error) {
-            console.error('❌❌❌ ERROR SAVING PROJECT - FULL DETAILS ❌❌❌');
-            console.error('Error name:', error.name);
-            console.error('Error message:', error.message);
-            console.error('Error code:', error.code);
-            console.error('Error details:', error.details);
-            console.error('Error hint:', error.hint);
-            console.error('Error stack:', error.stack);
-
-            // Log the entire error object
-            console.error('Complete error object:', error);
-
-            // Try to stringify the error
-            try {
-                console.error('Stringified error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-            } catch (e) {
-                console.error('Could not stringify error');
-            }
-
-            // Check Supabase connection
-            console.log('🔍 Checking Supabase connection...');
-            const { data: testData, error: testError } = await supabase
-                .from('projects')
-                .select('count', { count: 'exact', head: true });
-
-            console.log('Supabase test query:', { testData, testError });
-
-            alert(`❌ Error saving project:\n\nMessage: ${error.message}\n\nCode: ${error.code || 'N/A'}\n\nDetails: ${error.details || 'N/A'}\n\nCheck console for more details.`);
+            console.error('Error saving project:', error);
+            alert(`Error saving project:\n\nMessage: ${error.message}\n\nCode: ${error.code || 'N/A'}\n\nDetails: ${error.details || 'N/A'}\n\nCheck console for more details.`);
         } finally {
             setLoading(false);
         }
@@ -314,7 +299,6 @@ const ProjectFormPage = () => {
                             </p>
                         </div>
 
-                        {/* Toggleable Tabs */}
                         <div className="form-tabs">
                             <button
                                 className={`tab-btn ${activeTab === 1 ? 'active' : ''}`}
@@ -351,7 +335,6 @@ const ProjectFormPage = () => {
                         </div>
 
                         <form onSubmit={handleSubmit}>
-                            {/* Tab 1: Basic Info */}
                             {activeTab === 1 && (
                                 <div className="tab-content">
                                     <h3 className="section-title">Basic Information</h3>
@@ -398,16 +381,16 @@ const ProjectFormPage = () => {
                                         </div>
 
                                         <div className="form-group">
-                                            <label>MDA</label>
+                                            <label>Department</label>
                                             <select
-                                                name="mda_id"
-                                                value={formData.mda_id}
+                                                name="department_id"
+                                                value={formData.department_id}
                                                 onChange={handleChange}
                                             >
-                                                <option value="">Select MDA (Optional)</option>
-                                                {mdas.map(mda => (
-                                                    <option key={mda.id} value={mda.id}>
-                                                        {mda.department || mda.full_name}
+                                                <option value="">Select Department (Optional)</option>
+                                                {departments.map(dept => (
+                                                    <option key={dept.id} value={dept.id}>
+                                                        {dept.name}
                                                     </option>
                                                 ))}
                                             </select>
@@ -416,7 +399,6 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {/* Tab 2: Budget */}
                             {activeTab === 2 && (
                                 <div className="tab-content">
                                     <h3 className="section-title">Budget & Contractor</h3>
@@ -469,7 +451,6 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {/* Tab 3: Location */}
                             {activeTab === 3 && (
                                 <div className="tab-content">
                                     <h3 className="section-title">Location Details</h3>
@@ -526,7 +507,6 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {/* Tab 4: Documents */}
                             {activeTab === 4 && (
                                 <div className="tab-content">
                                     <h3 className="section-title">Documents</h3>
@@ -545,7 +525,6 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {/* Tab 5: Status (Edit only) */}
                             {activeTab === 5 && id && (
                                 <div className="tab-content">
                                     <h3 className="section-title">Project Status</h3>
@@ -567,7 +546,6 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {/* Navigation Buttons */}
                             <div className="tab-navigation">
                                 <div>
                                     {activeTab > 1 && (

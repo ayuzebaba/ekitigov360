@@ -38,7 +38,7 @@ const Footer = () => {
             </div>
 
             <div className="copyright">
-                <p>© 2026 Ekiti State Government. All rights reserved. Built for the people of Ekiti State. <i className="fas fa-heart"></i></p>
+                <p>© 2026 Ekiti State Government. All rights reserved. Built for the people of Ekiti State.</p>
             </div>
         </footer>
     );

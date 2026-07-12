@@ -6,6 +6,15 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import '../styles/NetworkPage.css';
 
+// FIXED (rewritten from scratch): the original version queried the
+// legacy `profiles` table and used its `id` directly for connection
+// requests. But connections.sender_id / receiver_id are Supabase Auth
+// ids (auth.uid()), which are NOT the same as ekiti_users.id -- so a
+// simple table swap would have silently created connections pointing
+// at the wrong identity. This version uses the get_officials_directory()
+// RPC, which returns each official already resolved to their real auth
+// id, so every connection/message action below uses a consistent,
+// correct identity throughout.
 const NetworkPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -27,31 +36,35 @@ const NetworkPage = () => {
     const fetchOfficials = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .neq('id', user?.id)
-                .order('full_name')
-                .limit(100);
+            const { data, error } = await supabase.rpc('get_officials_directory');
 
-            if (!error) {
-                const officialsWithStatus = await Promise.all(
-                    (data || []).map(async (official) => {
-                        const { data: existingConnection } = await supabase
-                            .from('connections')
-                            .select('id, status, sender_id, receiver_id')
-                            .or(`and(sender_id.eq.${user?.id},receiver_id.eq.${official.id}),and(sender_id.eq.${official.id},receiver_id.eq.${user?.id})`)
-                            .maybeSingle();
-
-                        return {
-                            ...official,
-                            connectionStatus: existingConnection?.status || 'none',
-                            connectionId: existingConnection?.id || null
-                        };
-                    })
-                );
-                setOfficials(officialsWithStatus);
+            if (error) {
+                console.error('Error fetching officials directory:', error);
+                setOfficials([]);
+                return;
             }
+
+            // Exclude self, normalize id field name to match rest of component
+            const others = (data || [])
+                .filter(o => o.auth_id !== user?.id)
+                .map(o => ({ ...o, id: o.auth_id }));
+
+            const officialsWithStatus = await Promise.all(
+                others.map(async (official) => {
+                    const { data: existingConnection } = await supabase
+                        .from('connections')
+                        .select('id, status, sender_id, receiver_id')
+                        .or(`and(sender_id.eq.${user?.id},receiver_id.eq.${official.id}),and(sender_id.eq.${official.id},receiver_id.eq.${user?.id})`)
+                        .maybeSingle();
+
+                    return {
+                        ...official,
+                        connectionStatus: existingConnection?.status || 'none',
+                        connectionId: existingConnection?.id || null
+                    };
+                })
+            );
+            setOfficials(officialsWithStatus);
         } catch (error) {
             console.error('Error fetching officials:', error);
         } finally {
@@ -73,25 +86,15 @@ const NetworkPage = () => {
             let enriched = connectionsData || [];
 
             if (enriched.length > 0) {
-                const allIds = [...new Set([
-                    ...enriched.map(c => c.sender_id),
-                    ...enriched.map(c => c.receiver_id)
-                ])];
+                const { data: directory } = await supabase.rpc('get_officials_directory');
+                const map = {};
+                (directory || []).forEach(o => { map[o.auth_id] = { ...o, id: o.auth_id }; });
 
-                const { data: profilesData } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .in('id', allIds);
-
-                if (profilesData) {
-                    const map = {};
-                    profilesData.forEach(p => { map[p.id] = p; });
-                    enriched = enriched.map(conn => ({
-                        ...conn,
-                        sender: map[conn.sender_id],
-                        receiver: map[conn.receiver_id]
-                    }));
-                }
+                enriched = enriched.map(conn => ({
+                    ...conn,
+                    sender: map[conn.sender_id],
+                    receiver: map[conn.receiver_id]
+                }));
             }
 
             setConnections(enriched);
@@ -204,26 +207,28 @@ const NetworkPage = () => {
             c.sender_id === user?.id && c.receiver_id === official.id && c.status === 'pending'
         );
 
-    const getRoleLabel = (role) => {
-        const labels = {
-            governor: 'Executive Governor',
-            commissioner: 'Commissioner',
-            chairman: 'LGA Chairman',
-            admin: 'Administrator',
-            official: 'Government Official'
-        };
-        return labels[role] || role || 'Government Official';
+    const ROLE_LABELS = {
+        citizen: 'Citizen',
+        department_staff: 'Department Staff',
+        lg_legislative: 'LG Legislative',
+        executive_chairman: 'Executive Chairman',
+        mda_oversight: 'MDA Oversight',
+        governor: 'Governor',
+        judiciary: 'Judiciary',
+        hoa: 'House of Assembly',
     };
 
-    const getRoleColor = (role) => {
-        const colors = {
-            governor: '#1e3a5f',
-            commissioner: '#016b40',
-            chairman: '#f57c00',
-            admin: '#9c27b0',
-        };
-        return colors[role] || '#016b40';
+    const getRoleLabel = (role) => ROLE_LABELS[role] || role || 'Government Official';
+
+    const ROLE_COLORS = {
+        governor: '#1e3a5f',
+        mda_oversight: '#016b40',
+        executive_chairman: '#f57c00',
+        lg_legislative: '#9c27b0',
+        department_staff: '#4a8c6f',
     };
+
+    const getRoleColor = (role) => ROLE_COLORS[role] || '#016b40';
 
     const getInitials = (name) => {
         if (!name) return 'G';
@@ -237,7 +242,7 @@ const NetworkPage = () => {
         !searchTerm ||
         o.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         o.lga?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.department_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         o.role?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -255,7 +260,6 @@ const NetworkPage = () => {
             <main className="network-main">
                 <div className="container">
 
-                    {/* Page Header */}
                     <div className="network-header">
                         <div>
                             <h1 className="network-title">
@@ -281,7 +285,6 @@ const NetworkPage = () => {
                         </div>
                     </div>
 
-                    {/* Tabs */}
                     <div className="network-tabs">
                         <button
                             className={`net-tab ${activeTab === 'discover' ? 'active' : ''}`}
@@ -306,7 +309,6 @@ const NetworkPage = () => {
                         </button>
                     </div>
 
-                    {/* Search */}
                     <div className="network-search">
                         <i className="fas fa-search"></i>
                         <input
@@ -317,7 +319,6 @@ const NetworkPage = () => {
                         />
                     </div>
 
-                    {/* Content */}
                     {loading ? (
                         <div className="loading-state">
                             <i className="fas fa-spinner fa-spin"></i>
@@ -325,14 +326,13 @@ const NetworkPage = () => {
                         </div>
                     ) : (
                         <>
-                            {/* DISCOVER TAB */}
                             {activeTab === 'discover' && (
                                 <div className="officials-grid">
                                     {filteredOfficials.length === 0 ? (
                                         <div className="empty-state">
                                             <i className="fas fa-users"></i>
                                             <h3>No officials found</h3>
-                                            <p>Try a different search term</p>
+                                            <p>Officials appear here once they have logged in at least once</p>
                                         </div>
                                     ) : filteredOfficials.map(official => {
                                         const incoming = hasIncomingRequest(official);
@@ -345,7 +345,7 @@ const NetworkPage = () => {
                                                     {getInitials(official.full_name)}
                                                 </div>
                                                 <div className="official-info">
-                                                    <h3>{official.full_name || 'Government Official'}</h3>
+                                                    <h3>{official.full_name || official.username || 'Government Official'}</h3>
                                                     <div className="official-role" style={{ color: roleColor }}>
                                                         <i className="fas fa-shield-alt"></i>
                                                         {getRoleLabel(official.role)}
@@ -356,10 +356,10 @@ const NetworkPage = () => {
                                                             {official.lga} LGA
                                                         </div>
                                                     )}
-                                                    {official.department && (
+                                                    {official.department_name && (
                                                         <div className="official-dept">
                                                             <i className="fas fa-building"></i>
-                                                            {official.department}
+                                                            {official.department_name}
                                                         </div>
                                                     )}
                                                 </div>
@@ -416,7 +416,6 @@ const NetworkPage = () => {
                                 </div>
                             )}
 
-                            {/* CONNECTED TAB */}
                             {activeTab === 'connections' && (
                                 <div className="officials-grid">
                                     {acceptedConnections.length === 0 ? (
@@ -439,7 +438,7 @@ const NetworkPage = () => {
                                                     {getInitials(other.full_name)}
                                                 </div>
                                                 <div className="official-info">
-                                                    <h3>{other.full_name}</h3>
+                                                    <h3>{other.full_name || other.username}</h3>
                                                     <div className="official-role" style={{ color: roleColor }}>
                                                         <i className="fas fa-shield-alt"></i>
                                                         {getRoleLabel(other.role)}
@@ -469,7 +468,6 @@ const NetworkPage = () => {
                                 </div>
                             )}
 
-                            {/* REQUESTS TAB */}
                             {activeTab === 'requests' && (
                                 <div className="officials-grid">
                                     {pendingRequests.length === 0 ? (
@@ -489,7 +487,7 @@ const NetworkPage = () => {
                                                     {getInitials(sender.full_name)}
                                                 </div>
                                                 <div className="official-info">
-                                                    <h3>{sender.full_name}</h3>
+                                                    <h3>{sender.full_name || sender.username}</h3>
                                                     <div className="official-role" style={{ color: roleColor }}>
                                                         <i className="fas fa-shield-alt"></i>
                                                         {getRoleLabel(sender.role)}

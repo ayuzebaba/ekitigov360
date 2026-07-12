@@ -1,0 +1,415 @@
+/* Project Form Page Styles */
+.form-page {
+    min-height: 100vh;
+    background-color: #f4f7fc;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Animated background */
+.bg-pattern {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(rgba(0, 100, 80, 0.1) 2px, transparent 2px);
+    background-size: 40px 40px;
+    z-index: -2;
+}
+
+.gradient-orb {
+    position: fixed;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle at 30% 50%, rgba(0, 180, 140, 0.15), transparent 70%);
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    top: -200px;
+    right: -100px;
+}
+
+.gradient-orb-2 {
+    bottom: -150px;
+    left: -100px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(0, 70, 150, 0.1), transparent 80%);
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: -1;
+}
+
+.form-main {
+    padding: 2rem 0;
+}
+
+/*.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 5%;
+}*/
+
+.form-card {
+    background: white;
+    border-radius: 40px;
+    padding: 2.5rem;
+    border: 2.5px solid rgba(0, 0, 0, 0.35);
+    /* Darker and thicker */
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
+    margin: 2rem 0;
+}
+
+.form-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.form-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #001f1a;
+    margin-bottom: 0.5rem;
+}
+
+.form-title i {
+    color: #016b40;
+    margin-right: 0.8rem;
+}
+
+.form-subtitle {
+    color: #4b6b68;
+    font-size: 1rem;
+}
+
+/* Tabs Styles */
+.form-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.25);
+    /* Darker border */
+    padding-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    background: transparent;
+    border: 1.5px solid transparent;
+    /* Will show on hover/active */
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #4b6b68;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 40px;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.tab-btn i {
+    font-size: 1rem;
+}
+
+.tab-btn:hover {
+    color: #016b40;
+    background: rgba(1, 107, 64, 0.05);
+    border: 1.5px solid rgba(1, 107, 64, 0.3);
+    /* Visible border on hover */
+}
+
+.tab-btn.active {
+    color: #016b40;
+    background: rgba(1, 107, 64, 0.1);
+    font-weight: 600;
+    border: 1.5px solid #016b40;
+    /* Solid green border for active tab */
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -0.7rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 3px;
+    background: #016b40;
+    border-radius: 3px;
+}
+
+/* Tab Content */
+.tab-content {
+    animation: fadeIn 0.3s ease;
+    min-height: 400px;
+    border: 1.5px solid rgba(0, 0, 0, 0.15);
+    /* Light border around content */
+    padding: 2rem;
+    border-radius: 24px;
+    background: #fafafa;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #001f1a;
+    margin-bottom: 1.5rem;
+    position: relative;
+    padding-left: 1rem;
+}
+
+.section-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 20px;
+    background: #016b40;
+    border-radius: 2px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-row .form-group {
+    margin-bottom: 0;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #001f1a;
+    font-size: 0.95rem;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="tel"],
+textarea,
+select {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    /* Thicker, darker border */
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    background: white;
+}
+
+input[type="file"] {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px dashed rgba(0, 0, 0, 0.35);
+    /* Thicker, darker dashed border */
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: #016b40;
+    border-width: 2.5px;
+    /* Thicker when focused */
+    background: white;
+    box-shadow: 0 0 0 4px rgba(1, 107, 64, 0.15);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.input-hint {
+    display: block;
+    margin-top: 0.5rem;
+    color: #4b6b68;
+    font-size: 0.8rem;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2.5px solid rgba(0, 0, 0, 0.25);
+    /* Thicker, darker border */
+}
+
+.btn-primary {
+    background: #016b40;
+    border: none;
+    padding: 0.8rem 2rem;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 15px 25px -8px #016b40;
+    transition: all 0.2s;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-primary:hover {
+    background: #00875e;
+    transform: translateY(-3px);
+    box-shadow: 0 25px 35px -12px #016b40;
+}
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2.5px solid #016b40;
+    /* Thicker border */
+    padding: 0.8rem 2rem;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #016b40;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-outline:hover {
+    background: #016b40;
+    color: white;
+}
+
+/* Loading State */
+.loading-state {
+    min-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: #016b40;
+}
+
+.loading-state i {
+    font-size: 3rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-card {
+        padding: 1.5rem;
+    }
+
+    .form-title {
+        font-size: 1.5rem;
+    }
+
+    .form-tabs {
+        justify-content: center;
+    }
+
+    .tab-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .tab-btn.active::after {
+        display: none;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .tab-navigation {
+        flex-direction: column-reverse;
+        gap: 1rem;
+    }
+
+    .tab-navigation>div {
+        width: 100%;
+    }
+
+    .btn-primary,
+    .btn-outline {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Success state for inputs */
+input.valid,
+textarea.valid,
+select.valid {
+    border-color: #2e7d32;
+    border-width: 2.5px;
+}
+
+input.invalid,
+textarea.invalid,
+select.invalid {
+    border-color: #c62828;
+    border-width: 2.5px;
+}
+
+/* File input custom styling */
+input[type="file"]::-webkit-file-upload-button {
+    background: #016b40;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    margin-right: 1rem;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+}
+
+input[type="file"]::-webkit-file-upload-button:hover {
+    background: #00875e;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+}

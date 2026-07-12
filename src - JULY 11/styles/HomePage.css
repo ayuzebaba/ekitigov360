@@ -1,0 +1,781 @@
+/* ============================================
+   HOMEPAGE.CSS — Fixed to match HTML version
+   Only hero + navbar sections modified
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f4f7fc;
+    color: #1e2f4a;
+    line-height: 1.5;
+}
+
+/* Background elements */
+.bg-pattern {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(rgba(0, 100, 80, 0.1) 2px, transparent 2px);
+    background-size: 40px 40px;
+    z-index: -2;
+}
+
+.gradient-orb {
+    position: fixed;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle at 30% 50%, rgba(0, 180, 140, 0.15), transparent 70%);
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    top: -200px;
+    right: -100px;
+}
+
+.gradient-orb-2 {
+    bottom: -150px;
+    left: -100px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(0, 70, 150, 0.1), transparent 80%);
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: -1;
+}
+
+/* ── NAVBAR ── */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 5%;
+    width: 100%;
+    background: white;
+    border-bottom: 3px solid #016b40;
+    box-shadow: 0 4px 20px -8px rgba(1, 107, 64, 0.2);
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1300px;
+    margin: 0 auto;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-icon {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(145deg, #016b40, #00875e);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    /* ← reduced from 1.8rem so crown fits */
+    color: white;
+    box-shadow: 0 4px 10px -3px rgba(0, 135, 94, 0.4);
+}
+
+.logo-text h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #016b40, #0087b4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.logo-text p {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #2a5c5a;
+    letter-spacing: 1px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 2.5rem;
+    align-items: center;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #1e3f3e;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: color 0.2s;
+    position: relative;
+    padding: 0.5rem 0;
+    cursor: pointer;
+}
+
+.nav-links a:hover {
+    color: #008060;
+}
+
+.nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: #016b40;
+    transition: width 0.2s;
+}
+
+.nav-links a:hover::after,
+.nav-links a.active::after {
+    width: 100%;
+}
+
+.nav-links a.active {
+    color: #016b40;
+    font-weight: 600;
+}
+
+.gov-badge {
+    background: #001f1a;
+    color: #b5f0e0;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid #008060;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+
+.gov-badge:hover {
+    background: #0a3a2a;
+    color: white;
+}
+
+/* ── MAIN CONTAINER ── */
+/*.container {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 0 5%;
+}*/
+
+/* ── HERO ── */
+.hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5rem;
+    /* matches HTML */
+    padding: 0.5rem 0 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+.hero-content {
+    flex: 1 1 450px;
+    padding-top: 3rem;
+    /* ← ADD THIS */
+}
+
+/* ✅ KEY FIX: font-size reduced to match HTML (4rem not default browser large) */
+.hero-content h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 3.3rem;
+    /* matches HTML exactly */
+    font-weight: 900;
+    line-height: 1.1;
+    color: #001f1a;
+    margin-bottom: 0.8rem;
+    text-align: center;
+}
+
+.hero-gradient-text {
+    background: linear-gradient(145deg, #016b40, #0087b4);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+}
+
+.hero-description {
+    font-size: 1.2rem;
+    color: #2d4f4c;
+    max-width: 550px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Stats pill */
+.stats-grid {
+    display: flex;
+    gap: 2.5rem;
+    margin: 1.5rem auto;
+    background: white;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    box-shadow: 0 15px 30px -15px rgba(0, 100, 80, 0.2);
+    border: 1px solid rgba(1, 107, 64, 0.15);
+    flex-wrap: wrap;
+    justify-content: center;
+    width: fit-content;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #016b40;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #4b6b68;
+    font-weight: 500;
+}
+
+/* ✅ KEY FIX: buttons side by side, not stacked */
+.button-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 1.5rem 0 1rem;
+}
+
+.btn-primary {
+    background: #016b40;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 1rem 2.5rem;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 1rem;
+    color: white;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 15px 25px -8px #016b40;
+    transition: all 0.2s;
+    white-space: nowrap;
+    /* ✅ prevents button text wrapping */
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-primary:hover {
+    background: #00875e;
+    transform: translateY(-3px);
+    box-shadow: 0 25px 35px -12px #016b40;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid #016b40;
+    padding: 1rem 2.5rem;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #016b40;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    /* ✅ prevents button text wrapping */
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-outline:hover {
+    background: #016b40;
+    color: white;
+}
+
+.hero-footer {
+    margin-top: 1rem;
+    color: #537571;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.hero-footer i {
+    color: #016b40;
+    margin-right: 0.3rem;
+}
+
+/* ── HERO VISUAL CARD (navy blue) ── */
+.hero-visual {
+    flex: 1 1 350px;
+    background: linear-gradient(145deg, #1e3a5f, #0a1f3a);
+    border-radius: 40px;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 30px 50px -15px rgba(10, 31, 58, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(5px);
+    text-align: center;
+    transition: all 0.3s;
+    color: white;
+    margin-top: -1.5rem;
+    max-width: 420px;
+    /* ✅ prevents card from getting too wide */
+}
+
+.hero-visual:hover {
+    box-shadow: 0 40px 60px -15px rgba(10, 31, 58, 0.8);
+    transform: translateY(-3px);
+}
+
+.pill-tag-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.4rem 1.2rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 1.2rem;
+}
+
+.visual-icon-stack {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ✅ KEY FIX: icon cards need explicit size & font-size to show Font Awesome icons */
+.icon-card {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.4);
+    padding: 1rem;
+    border-radius: 20px;
+    font-size: 2rem;
+    /* ✅ must be set for FA icons to size correctly */
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-title {
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: white;
+}
+
+.card-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+}
+
+.ai-graph-line {
+    height: 4px;
+    width: 100%;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2));
+    margin: 1rem 0;
+    border-radius: 2px;
+}
+
+.card-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: white;
+}
+
+.stat-highlight {
+    color: white;
+    font-weight: 700;
+}
+
+/* ✅ KEY FIX: yellow dot restored */
+.alert-dot {
+    color: #ffd700;
+    font-size: 0.6rem;
+    margin-right: 0.3rem;
+}
+
+.card-sentiment {
+    margin-top: 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.8rem;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white;
+    text-align: left;
+}
+
+/* ✅ KEY FIX: robot icon gold colour */
+.card-sentiment i {
+    color: #ffd700;
+    margin-right: 0.4rem;
+}
+
+/* ── FEATURES SECTION ── (unchanged — already working) */
+.claude-features {
+    padding: 1rem 0 1.5rem 0;
+    background: #f4f7fc;
+}
+
+.features-header {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.section-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #016b40;
+    margin-bottom: 0.3rem;
+}
+
+.features-header h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.5rem;
+    color: #001f1a;
+    line-height: 1.2;
+}
+
+.feature-card-wide {
+    background: white;
+    border-radius: 30px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px -10px rgba(1, 107, 64, 0.1);
+    border: 1px solid rgba(1, 107, 64, 0.2);
+    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.feature-card-wide:hover {
+    border-color: #016b40;
+    box-shadow: 0 20px 40px -12px #016b40;
+}
+
+.feature-number {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #016b40;
+    margin-bottom: 0.8rem;
+}
+
+.feature-card-wide h4 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #001f1a;
+    margin-bottom: 0.8rem;
+    line-height: 1.3;
+}
+
+.feature-card-wide p {
+    color: #3f605c;
+    line-height: 1.6;
+}
+
+.sentiment-dashboard {
+    background: #f0f9f5;
+    border-radius: 20px;
+    padding: 1.5rem;
+    border: 1px solid rgba(1, 107, 64, 0.15);
+}
+
+.sentiment-dashboard h5 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #016b40;
+    margin-bottom: 1.2rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.sentiment-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.sentiment-label {
+    font-size: 0.9rem;
+    color: #2d4f4c;
+    width: 100px;
+}
+
+.bar-track {
+    flex: 1;
+    height: 8px;
+    background: #e0e8e4;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #016b40, #00a87e);
+    border-radius: 99px;
+}
+
+.sentiment-percent {
+    font-weight: 700;
+    color: #016b40;
+    width: 45px;
+    text-align: right;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.feature-card {
+    background: white;
+    border-radius: 30px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px -10px rgba(1, 107, 64, 0.1);
+    border: 1px solid rgba(1, 107, 64, 0.2);
+    transition: all 0.2s;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    border-color: #016b40;
+    box-shadow: 0 15px 30px -10px #016b40;
+}
+
+.feature-icon {
+    width: 50px;
+    height: 50px;
+    background: #e0f2ec;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #016b40;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(1, 107, 64, 0.1);
+}
+
+.feature-card h4 {
+    font-size: 1.2rem;
+    margin-bottom: 0.6rem;
+}
+
+.feature-card p {
+    color: #3f605c;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* ── STAKEHOLDER ROW ── */
+.stakeholder-row {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 1rem 0 1.5rem 0;
+}
+
+.stakeholder-badge {
+    background: white;
+    border-radius: 50px;
+    padding: 0.5rem 1.5rem;
+    border: 1px solid rgba(1, 107, 64, 0.2);
+    box-shadow: 0 4px 10px -5px rgba(1, 107, 64, 0.1);
+    font-size: 0.9rem;
+}
+
+.stakeholder-badge i {
+    color: #016b40;
+    margin-right: 0.5rem;
+}
+
+/* ── FOOTER ── */
+.footer {
+    background: linear-gradient(145deg, #1e3a5f, #0a1f3a);
+    color: white;
+    padding: 3rem 5% 2rem 5%;
+    margin-top: 2rem;
+}
+
+.footer-content {
+    max-width: 1300px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+}
+
+.footer-col .logo-icon {
+    width: 45px;
+    height: 45px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: white;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.footer-col p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    max-width: 250px;
+}
+
+.footer-links h4 {
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+}
+
+.footer-links a {
+    display: block;
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+    cursor: pointer;
+}
+
+.footer-links a:hover {
+    color: #ffd700;
+}
+
+.copyright {
+    text-align: center;
+    padding-top: 2rem;
+    margin-top: 2rem;
+    border-top: 2px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+    position: relative;
+}
+
+.copyright::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 3px;
+}
+
+.copyright i.fa-heart {
+    color: #ff6b6b;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1000px) {
+    .feature-card-wide {
+        grid-template-columns: 1fr;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .hero {
+        gap: 3rem;
+    }
+
+    .hero-visual {
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 800px) {
+    .hero-content h2 {
+        font-size: 3rem;
+    }
+
+    .navbar {
+        flex-direction: column;
+        padding: 1rem 5%;
+        gap: 1rem;
+    }
+
+    .nav-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .nav-links {
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        flex-direction: column;
+        gap: 1rem;
+        border-radius: 30px;
+    }
+
+    .hero {
+        gap: 2rem;
+    }
+
+    .hero-visual {
+        width: 100%;
+        max-width: 100%;
+        margin-top: 0;
+    }
+}

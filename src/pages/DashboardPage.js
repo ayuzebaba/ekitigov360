@@ -2,14 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
+import { departmentService } from '../services/departmentService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/DashboardPage.css';
 
+const ROLE_LABELS = {
+    citizen: 'Citizen',
+    department_staff: 'Department Staff',
+    lg_legislative: 'LG Legislative',
+    executive_chairman: 'Executive Chairman',
+    mda_oversight: 'MDA Oversight',
+    governor: 'Governor',
+    judiciary: 'Judiciary',
+    hoa: 'House of Assembly',
+};
+
 const DashboardPage = () => {
-    const { user, signOut } = useAuth();
+    // FIXED: DashboardPage previously fetched a separate `profile` from
+    // the legacy `profiles` table just for the welcome message (name,
+    // role, LGA). AuthContext's `profile` (here renamed authProfile)
+    // already fetches this same information from ekiti_users -- the
+    // real source of truth -- on every page load. Using it directly
+    // removes the last real dependency this page had on `profiles`.
+    const { user, profile: authProfile, signOut } = useAuth();
     const navigate = useNavigate();
-    const [profile, setProfile] = useState(null);
     const [stats, setStats] = useState({
         totalProjects: 0,
         ongoingProjects: 0,
@@ -24,7 +41,6 @@ const DashboardPage = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // ✅ Dev bypass — remove condition before production
         const devBypass = sessionStorage.getItem('devBypass') === 'true';
 
         if (!user && !devBypass) {
@@ -32,22 +48,18 @@ const DashboardPage = () => {
             return;
         }
 
-        // Only fetch real data if there's a real user
         if (user) {
-            fetchUserData();
-            fetchIncomingCalls(); // Add this line
+            fetchProjectData();
+            fetchIncomingCalls();
         } else {
-            // Dev mode — just stop loading, show empty dashboard
             setLoading(false);
         }
 
-        // Set up realtime subscription for calls
         const callsSubscription = supabase
             .channel('calls-channel')
             .on('postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'calls', filter: `recipient_id=eq.${user?.id}` },
                 (payload) => {
-                    // New incoming call
                     const newCall = {
                         id: `call-${payload.new.id}`,
                         type: 'call',
@@ -80,7 +92,6 @@ const DashboardPage = () => {
 
             if (error) throw error;
 
-            // Add to notifications
             const callNotifications = (calls || []).map(call => ({
                 id: `call-${call.id}`,
                 type: 'call',
@@ -107,7 +118,6 @@ const DashboardPage = () => {
 
             if (error) throw error;
 
-            // Remove from notifications
             setNotifications(prev => prev.filter(n => n.callId !== callId));
             setStats(prev => ({ ...prev, incomingCalls: prev.incomingCalls - 1 }));
         } catch (error) {
@@ -115,31 +125,14 @@ const DashboardPage = () => {
         }
     };
 
-    const fetchUserData = async () => {
-        // ✅ Guard — don't run if no user (dev bypass mode)
+    // FIXED: renamed from fetchUserData -- no longer fetches a profile
+    // (that comes from AuthContext now). Only fetches project stats.
+    const fetchProjectData = async () => {
         if (!user) return;
 
         setLoading(true);
         try {
-            // Fetch user profile
-            const { data: profileData } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
-
-            setProfile(profileData);
-
-            // Fetch project stats based on role
-            let query = supabase.from('projects').select('*');
-
-            if (profileData?.role === 'chairman') {
-                query = query.eq('lga_id', user.id);
-            } else if (profileData?.role === 'commissioner') {
-                query = query.eq('mda_id', user.id);
-            }
-
-            const { data: projects } = await query;
+            const { data: projects } = await supabase.from('projects').select('*');
 
             if (projects) {
                 setStats({
@@ -152,11 +145,9 @@ const DashboardPage = () => {
                     incomingCalls: 0
                 });
 
-                // Get 5 most recent projects
                 setRecentProjects(projects.slice(0, 5));
             }
 
-            // Fetch pending connection requests
             const { data: requests } = await supabase
                 .from('connections')
                 .select('*')
@@ -168,7 +159,6 @@ const DashboardPage = () => {
                 pendingRequests: requests?.length || 0
             }));
 
-            // Create notifications
             const notifs = [];
             if (requests?.length > 0) {
                 notifs.push({
@@ -199,7 +189,6 @@ const DashboardPage = () => {
     };
 
     const handleLogout = async () => {
-        // ✅ Clear dev bypass on logout
         sessionStorage.removeItem('devBypass');
         await signOut();
         navigate('/');
@@ -212,16 +201,6 @@ const DashboardPage = () => {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
         }).format(amount);
-    };
-
-    const getRoleLabel = (role) => {
-        const roles = {
-            governor: 'Governor',
-            chairman: 'Local Government Chairman',
-            commissioner: 'Commissioner',
-            official: 'Government Official'
-        };
-        return roles[role] || role;
     };
 
     if (loading) {
@@ -239,23 +218,21 @@ const DashboardPage = () => {
             <div className="gradient-orb"></div>
             <div className="gradient-orb-2"></div>
 
-            {/* Shared Header */}
             <Header />
 
-            {/* Main Dashboard Content */}
             <main className="dashboard-main">
                 <div className="container">
 
-                    {/* Welcome Section */}
                     <div className="welcome-section">
                         <div>
                             <h1 className="welcome-title">
                                 Welcome back, <span className="highlight">
-                                    {profile?.full_name?.split(' ')[0] || 'Official'}
+                                    {authProfile?.full_name?.split(' ')[0] || 'Official'}
                                 </span>
                             </h1>
                             <p className="welcome-subtitle">
-                                {getRoleLabel(profile?.role)} • {profile?.lga || profile?.department || 'Ekiti State'}
+                                {ROLE_LABELS[authProfile?.role] || authProfile?.role || 'Ekiti State'}
+                                {authProfile?.lga ? ` • ${authProfile.lga}` : ' • Ekiti State'}
                             </p>
                         </div>
                         <div className="date-badge">
@@ -269,7 +246,6 @@ const DashboardPage = () => {
                         </div>
                     </div>
 
-                    {/* Stats Grid */}
                     <div className="stats-grid-dashboard">
                         <div className="stat-card-dashboard">
                             <div className="stat-icon blue">
@@ -322,13 +298,10 @@ const DashboardPage = () => {
                         </div>
                     </div>
 
-                    {/* Two Column Layout */}
                     <div className="dashboard-grid">
 
-                        {/* LEFT COLUMN - Quick Actions + Notifications */}
                         <div className="dashboard-card notifications">
 
-                            {/* Quick Actions */}
                             <div className="quick-actions">
                                 <h4><i className="fas fa-bolt"></i> Quick Actions</h4>
                                 <div className="actions-grid">
@@ -360,7 +333,6 @@ const DashboardPage = () => {
                                 </div>
                             </div>
 
-                            {/* Notifications */}
                             <div style={{ marginTop: '2rem' }}>
                                 <div className="card-header">
                                     <h3><i className="fas fa-bell"></i> Notifications</h3>
@@ -410,7 +382,6 @@ const DashboardPage = () => {
                             </div>
                         </div>
 
-                        {/* RIGHT COLUMN - Recent Projects */}
                         <div className="dashboard-card recent-projects">
                             <div className="card-header">
                                 <h3><i className="fas fa-history"></i> Recent Projects</h3>
@@ -455,7 +426,6 @@ const DashboardPage = () => {
                 </div>
             </main>
 
-            {/* Shared Footer */}
             <Footer />
         </div>
     );
