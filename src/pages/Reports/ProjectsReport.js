@@ -42,16 +42,11 @@ const ProjectsReport = () => {
             .order('name');
         setDepartments(deptData || []);
 
-        // NOTE: still queries `profiles` for role = 'chairman', same
-        // stale-table issue as elsewhere. Not fixed here since this
-        // function isn't the one that was actually failing (the LGA
-        // filter dropdown may just show empty options for now) -- the
-        // real fix would be swapping to the get_chairmen_directory() RPC
-        // the same way ProjectsPage.js and ProjectFormPage.js were fixed.
-        const { data: lgaData } = await supabase
-            .from('profiles')
-            .select('id, lga')
-            .eq('role', 'chairman');
+        // FIXED: was querying `profiles` for role = 'chairman' (stale
+        // table/role, always returned empty). Now uses the same
+        // get_chairmen_directory() RPC used in ProjectsPage.js and
+        // ProjectFormPage.js, which reads ekiti_users correctly.
+        const { data: lgaData } = await supabase.rpc('get_chairmen_directory');
         setLgas(lgaData || []);
     };
 

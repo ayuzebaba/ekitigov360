@@ -82,11 +82,18 @@ const VideoCallPage = () => {
 
     const createCallRecord = async (room) => {
         try {
-            const { data: userData } = await supabase.from('profiles').select('full_name').eq('id', currentUser?.id).single();
+            // FIXED: was querying the legacy `profiles` table by id.
+            // ekiti_users is the real source of truth now, matched by
+            // phone (currentUser.id has no relationship to ekiti_users.id).
+            const { data: userData } = await supabase
+                .from('ekiti_users')
+                .select('full_name, username')
+                .eq('phone', `+${currentUser?.phone}`)
+                .maybeSingle();
             await supabase.from('calls').insert([{
                 room_id: room,
                 caller_id: currentUser?.id,
-                caller_name: userData?.full_name || 'Unknown Official',
+                caller_name: userData?.full_name || userData?.username || 'Unknown Official',
                 status: 'ringing',
                 expires_at: new Date(Date.now() + 30000).toISOString()
             }]);

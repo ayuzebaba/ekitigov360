@@ -152,6 +152,8 @@ const authorizeApprovalAction = async (approvalId, requiredRoles) => {
         throw new Error('Could not verify your role. Please log in again.');
     }
 
+    // First check: is this role in the approval-authorized set at all
+    // (rules out citizen/department_staff immediately).
     if (!requiredRoles.includes(profile.role)) {
         throw new Error('You do not have permission to perform this action.');
     }
@@ -167,6 +169,24 @@ const authorizeApprovalAction = async (approvalId, requiredRoles) => {
         .single();
 
     if (fetchError) throw fetchError;
+
+    // FIXED: this is the real bug behind "a project above someone's
+    // approval level should require a higher authority, but this
+    // wasn't actually enforced." The check above only confirmed the
+    // approver holds SOME approval-authorized role -- it never checked
+    // that their role matches the SPECIFIC stage this approval row is
+    // for. That meant, e.g., an lg_legislative account could directly
+    // approve a Chairman- or State-tier approval row, completely
+    // bypassing the sequential chain. This second check closes that gap.
+    const stageLevelName = approvalData?.approval_level?.name;
+    if (stageLevelName) {
+        const requiredRoleForStage = getRoleForLevel(stageLevelName);
+        if (profile.role !== requiredRoleForStage) {
+            throw new Error(
+                `This approval requires the "${requiredRoleForStage}" role for the "${stageLevelName}" stage. Your role ("${profile.role}") does not match.`
+            );
+        }
+    }
 
     if (approvalData?.project?.created_by === authUser.id) {
         throw new Error('You cannot approve or reject a project you submitted yourself.');
