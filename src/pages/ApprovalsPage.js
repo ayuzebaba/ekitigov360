@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../services/supabase';
 import { getAllPendingApprovals, approveProject, rejectProject, escalateProject } from '../services/approvalService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ApprovalsPage.css';
 
-// Must match the roles defined in approvalService.js
 const APPROVAL_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight', 'governor'];
 const ESCALATION_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight'];
 
@@ -15,7 +15,6 @@ const ApprovalsPage = () => {
     const navigate = useNavigate();
     const [approvals, setApprovals] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('pending');
 
     const canApprove = APPROVAL_ROLES.includes(profile?.role);
     const canEscalate = ESCALATION_ROLES.includes(profile?.role);
@@ -33,7 +32,30 @@ const ApprovalsPage = () => {
         try {
             const { data, error } = await getAllPendingApprovals();
             if (error) throw error;
-            setApprovals(data || []);
+
+            let enriched = data || [];
+
+            // FIXED: "Requester: N/A" -- the query behind getAllPendingApprovals
+            // never actually asked for the project creator's info (project:project_id(*)
+            // only returns raw columns, including created_by as a bare UUID with no
+            // name attached). Resolve real names here using the same
+            // get_officials_directory() RPC built for the Network page, matching
+            // each project's created_by against the directory's auth_id.
+            if (enriched.length > 0) {
+                const { data: directory } = await supabase.rpc('get_officials_directory');
+                const nameMap = {};
+                (directory || []).forEach(o => { nameMap[o.auth_id] = o; });
+
+                enriched = enriched.map(approval => ({
+                    ...approval,
+                    project: {
+                        ...approval.project,
+                        creator: nameMap[approval.project?.created_by] || null
+                    }
+                }));
+            }
+
+            setApprovals(enriched);
         } catch (error) {
             console.error('Error fetching approvals:', error);
             alert('Error loading approvals');
@@ -48,8 +70,6 @@ const ApprovalsPage = () => {
 
         const { error } = await approveProject(approvalId, comments || 'Approved');
         if (error) {
-            // error.message now carries specific, real reasons
-            // (e.g. "You cannot approve a project you submitted yourself.")
             alert(error.message || 'Error approving project');
             return;
         }
@@ -189,7 +209,7 @@ const ApprovalsPage = () => {
                                         </div>
                                         <div className="detail-item">
                                             <i className="fas fa-user"></i>
-                                            <span>Requester: {approval.project?.creator?.full_name || 'N/A'}</span>
+                                            <span>Requester: {approval.project?.creator?.full_name || approval.project?.creator?.username || 'N/A'}</span>
                                         </div>
                                         <div className="detail-item">
                                             <i className="fas fa-clock"></i>

@@ -71,8 +71,8 @@ const Header = () => {
                             <i className="fas fa-chart-bar"></i> Reports
                         </NavLink>
                         {profile?.is_admin && (
-                            <NavLink to="/admin/users" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                                <i className="fas fa-users-cog"></i> Manage Users
+                            <NavLink to="/admin" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                                <i className="fas fa-shield-alt"></i> Admin
                             </NavLink>
                         )}
                     </nav>

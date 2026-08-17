@@ -209,6 +209,24 @@ export const approveProject = async (approvalId, comments = '') => {
         const { authUserId, projectId, budgetAmount, currentLevelName } =
             await authorizeApprovalAction(approvalId, APPROVAL_ROLES);
 
+        const chain = await computeApprovalChain(budgetAmount);
+        const currentIndex = chain ? chain.indexOf(currentLevelName) : -1;
+        const nextLevelName = chain && currentIndex !== -1 ? chain[currentIndex + 1] : undefined;
+
+        // FIXED (reordered): advancing to the next stage now happens
+        // BEFORE marking the current stage approved, not after. With
+        // advanceToNextStage no longer failing on a missing approver
+        // (see its own fix), the remaining failure modes here are
+        // genuine errors (bad level name, DB error) -- and if one of
+        // those happens, we now correctly bail out before committing
+        // the current stage as approved, rather than leaving a project
+        // with one approved stage and no next stage, unrecoverable
+        // without manual SQL.
+        if (nextLevelName) {
+            const { error: advanceError } = await advanceToNextStage(projectId, nextLevelName, authUserId);
+            if (advanceError) throw advanceError;
+        }
+
         const { data, error } = await supabase
             .from('project_approvals')
             .update({
@@ -222,17 +240,8 @@ export const approveProject = async (approvalId, comments = '') => {
 
         if (error) throw error;
 
-        const chain = await computeApprovalChain(budgetAmount);
-        const currentIndex = chain ? chain.indexOf(currentLevelName) : -1;
-        const nextLevelName = chain && currentIndex !== -1 ? chain[currentIndex + 1] : undefined;
-
-        if (nextLevelName) {
-            // Not the final stage -- advance to the next one in the
-            // chain rather than finalizing the project.
-            const { error: advanceError } = await advanceToNextStage(projectId, nextLevelName, authUserId);
-            if (advanceError) throw advanceError;
-        } else {
-            // Final stage (or no chain applies) -- finalize as before.
+        if (!nextLevelName) {
+            // Final stage (or no chain applies) -- finalize the project.
             const { error: projectError } = await supabase
                 .from('projects')
                 .update({ status: 'approved' })
@@ -240,6 +249,8 @@ export const approveProject = async (approvalId, comments = '') => {
 
             if (projectError) throw projectError;
         }
+        // If nextLevelName exists, project stays 'pending_approval' --
+        // it was already in that state from the previous stage.
 
         await auditService.logAction({
             userId: authUserId,
@@ -257,9 +268,21 @@ export const approveProject = async (approvalId, comments = '') => {
     }
 };
 
-// Creates the next stage's project_approvals record and finds an
-// approver for it, keeping the project at 'pending_approval' rather
-// than finalizing it. Shared by approveProject and routeProjectForApproval.
+// Creates the next stage's project_approvals record, keeping the
+// project at 'pending_approval' rather than finalizing it. Shared by
+// approveProject and routeProjectForApproval.
+//
+// FIXED: previously threw if no approver could currently be resolved
+// for the required role (e.g. nobody holds `executive_chairman` right
+// now) -- which left the project permanently stuck, since the CURRENT
+// stage had already been marked 'approved' by the caller before this
+// ran, and there was no retry mechanism anywhere. Confirmed
+// authorizeApprovalAction only checks ROLE, never approver_id, so it's
+// safe to create this row with approver_id = null when no one
+// currently holds the role -- any account that later takes on that
+// role can still validly approve it. The "must have a valid approver"
+// requirement now only applies at actual approval time, not at
+// stage-creation time.
 const advanceToNextStage = async (projectId, levelName, actingUserId) => {
     try {
         const { data: levelRow, error: levelError } = await supabase
@@ -277,29 +300,31 @@ const advanceToNextStage = async (projectId, levelName, actingUserId) => {
         const { data: approverAuthId, error: authLookupError } = await supabase
             .rpc('get_approver_auth_id', { required_role: requiredRole });
 
+        // No longer throws if approverAuthId is null/missing -- just
+        // proceeds with approver_id: null. authLookupError (a genuine
+        // query failure) still bubbles up, since that's a real error,
+        // not "nobody currently holds this role" (an expected, valid state).
         if (authLookupError) throw authLookupError;
-        if (!approverAuthId) {
-            throw new Error(`No approver found with role: ${requiredRole}. Assign someone this role in ekiti_users first, and make sure they have logged in at least once.`);
-        }
 
         const { error: approvalError } = await createProjectApproval(
             projectId,
             levelRow.id,
-            approverAuthId
+            approverAuthId || null
         );
 
         if (approvalError) throw approvalError;
-
-        // Project stays 'pending_approval' -- no status change needed,
-        // it was already in that state from the previous stage.
 
         await auditService.logAction({
             userId: actingUserId,
             actionType: 'ADVANCE_APPROVAL_STAGE',
             tableName: 'projects',
             recordId: projectId,
-            newValue: JSON.stringify({ nextLevel: levelName, approver: approverAuthId }),
-            metadata: { action: 'ADVANCE_APPROVAL_STAGE', nextLevel: levelName }
+            newValue: JSON.stringify({ nextLevel: levelName, approver: approverAuthId || null }),
+            metadata: {
+                action: 'ADVANCE_APPROVAL_STAGE',
+                nextLevel: levelName,
+                approverResolved: !!approverAuthId,
+            }
         });
 
         return { error: null };

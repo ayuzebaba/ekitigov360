@@ -23,7 +23,8 @@ import TimelineReport from './pages/Reports/TimelineReport';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ManageUsersPage from './pages/ManageUsersPage';
-import NetworkPage from './pages/NetworkPage';
+import ManageThresholdsPage from './pages/ManageThresholdsPage';
+import AdminHubPage from './pages/AdminHubPage';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
@@ -67,8 +68,9 @@ function App() {
                     <Route path="/reports/performance" element={<ProtectedRoute><PerformanceReport /></ProtectedRoute>} />
                     <Route path="/reports/departments" element={<ProtectedRoute><DepartmentSummary /></ProtectedRoute>} />
                     <Route path="/reports/timeline" element={<ProtectedRoute><TimelineReport /></ProtectedRoute>} />
-                    <Route path="/network" element={<ProtectedRoute><NetworkPage /></ProtectedRoute>} />
+                    <Route path="/admin" element={<ProtectedRoute><AdminHubPage /></ProtectedRoute>} />
                     <Route path="/admin/users" element={<ProtectedRoute><ManageUsersPage /></ProtectedRoute>} />
+                    <Route path="/admin/thresholds" element={<ProtectedRoute><ManageThresholdsPage /></ProtectedRoute>} />
                 </Routes>
             </Router>
         </AuthProvider>
