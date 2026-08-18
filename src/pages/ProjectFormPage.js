@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { logProjectAction } from '../services/auditService';
-import { routeProjectForApproval, needsApproval } from '../services/approvalService';
+import { routeProjectForApproval, needsApproval, computeApprovalChain } from '../services/approvalService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ProjectFormPage.css';
@@ -35,12 +35,39 @@ const ProjectFormPage = () => {
         status: 'planning'
     });
 
+    // NEW: live, read-only preview of which approval chain this
+    // project's budget will route through, shown under the Budget
+    // Amount field. Recomputed via computeApprovalChain (same logic
+    // the backend uses) any time budget_amount changes, so the person
+    // creating the project can see the routing before submitting
+    // rather than discovering it afterward.
+    const [approvalPreview, setApprovalPreview] = useState(null);
+
     useEffect(() => {
         fetchLgasAndDepartments();
         if (id) {
             fetchProject();
         }
     }, [id, user]);
+
+    // NEW: recompute the approval chain preview whenever the budget
+    // amount changes. Guards against empty/invalid input by clearing
+    // the preview rather than calling computeApprovalChain with a bad
+    // value. Uses a `cancelled` flag to avoid a race where a slower
+    // earlier request resolves after a newer one and overwrites it
+    // with stale data.
+    useEffect(() => {
+        const amount = parseFloat(formData.budget_amount);
+        if (!formData.budget_amount || isNaN(amount) || amount <= 0) {
+            setApprovalPreview(null);
+            return;
+        }
+        let cancelled = false;
+        computeApprovalChain(amount).then(chain => {
+            if (!cancelled) setApprovalPreview(chain);
+        });
+        return () => { cancelled = true; };
+    }, [formData.budget_amount]);
 
     const fetchLgasAndDepartments = async () => {
         // FIXED: was querying `profiles` for role = 'chairman', which is
@@ -413,6 +440,11 @@ const ProjectFormPage = () => {
                                                 onChange={handleChange}
                                                 placeholder="e.g., 50000000"
                                             />
+                                            {approvalPreview && (
+                                                <p style={{ color: '#888', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+                                                    This project will require approval from: {approvalPreview.join(' → ')}
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div className="form-group">

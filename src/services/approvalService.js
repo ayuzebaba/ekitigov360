@@ -129,7 +129,7 @@ const LEVEL_ORDER = ['Director', 'Chairman', 'State'];
 // passes through Director first.
 // Returns null if the project's budget doesn't require this chain at
 // all (falls in the lowest/HOD tier -- unchanged, out of scope here).
-const computeApprovalChain = async (budgetAmount) => {
+export const computeApprovalChain = async (budgetAmount) => {
     const { data: levelData, error } = await getRequiredApprovalLevel(budgetAmount);
     if (error || !levelData) return null;
 
