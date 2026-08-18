@@ -34,12 +34,18 @@ export const getRequiredApprovalLevel = async (budgetAmount) => {
 
 // Get project approvals
 export const getProjectApprovals = async (projectId) => {
+    // FIXED: removed the approver:approver_id(...) embed join. PostgREST
+    // cannot embed-join through the `auth` schema (auth.users) -- this
+    // is a permanent platform limitation, not a cache issue. Now that
+    // approver_id genuinely points to auth.users (correctly, per the
+    // FK fix), this join can never succeed. If the approver's name is
+    // needed for display, resolve it separately via
+    // get_officials_directory() the same way the Requester field was fixed.
     const { data, error } = await supabase
         .from('project_approvals')
         .select(`
             *,
-            approval_level:approval_levels(*),
-            approver:approver_id(full_name, role, lga)
+            approval_level:approval_levels(*)
         `)
         .eq('project_id', projectId)
         .order('created_at', { ascending: true });
@@ -49,13 +55,14 @@ export const getProjectApprovals = async (projectId) => {
 // Get pending approvals for current user
 export const getPendingApprovals = async () => {
     const { data: { user } } = await supabase.auth.getUser();
+    // FIXED: removed the approver:approver_id(...) embed join -- same
+    // permanent PostgREST/auth-schema limitation as getProjectApprovals above.
     const { data, error } = await supabase
         .from('project_approvals')
         .select(`
             *,
             project:project_id(*),
-            approval_level:approval_levels(*),
-            approver:approver_id(full_name, role, lga)
+            approval_level:approval_levels(*)
         `)
         .eq('approver_id', user?.id)
         .eq('status', 'pending')
@@ -65,13 +72,20 @@ export const getPendingApprovals = async () => {
 
 // Get all pending approvals (for admin/chairman)
 export const getAllPendingApprovals = async () => {
+    // FIXED: removed the approver:approver_id(...) embed join -- this
+    // was the actual root cause of the PGRST200 error on the Approvals
+    // page after correctly repointing approver_id's foreign key to
+    // auth.users. PostgREST cannot embed-join through the `auth` schema
+    // at all -- a permanent platform limitation, not a cache staleness
+    // issue (we chased that hypothesis first and it was a dead end).
+    // Same recurring pattern as the earlier creator:created_by(...)
+    // fixes in ProjectsPage/ProjectDetailPage/ProjectsReport/ApprovalsPage.
     const { data, error } = await supabase
         .from('project_approvals')
         .select(`
             *,
             project:project_id(*),
-            approval_level:approval_levels(*),
-            approver:approver_id(full_name, role, lga)
+            approval_level:approval_levels(*)
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: true });
