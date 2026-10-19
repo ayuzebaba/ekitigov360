@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { logProjectAction } from '../services/auditService';
-import { routeProjectForApproval, needsApproval, computeApprovalChain } from '../services/approvalService';
+import { routeProjectForApproval, needsApproval, computeApprovalChain, isDbRoutingEnabled } from '../services/approvalService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ProjectFormPage.css';
@@ -19,6 +19,8 @@ const ProjectFormPage = () => {
     const [lgas, setLgas] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [boqFile, setBoqFile] = useState(null);
+    // status the project had when it was loaded (used by the Status tab under DB routing)
+    const [originalStatus, setOriginalStatus] = useState('');
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -75,10 +77,19 @@ const ProjectFormPage = () => {
         // a security-definer RPC that reads ekiti_users for
         // role = 'executive_chairman', bypassing the "own row only" RLS
         // restriction narrowly and correctly for this legitimate lookup.
-        const { data: lgaData, error: lgaError } = await supabase.rpc('get_chairmen_directory');
-
-        if (lgaError) console.error('Error fetching LGAs:', lgaError);
-        setLgas(lgaData || []);
+        let lgaData = [];
+        if (isDbRoutingEnabled()) {
+            // DB routing (flag): the 16 real LGAs from the lgas table
+            const { data, error: lgaError } = await supabase
+                .from('lgas').select('id, name').eq('is_active', true).order('name');
+            if (lgaError) console.error('Error fetching LGAs:', lgaError);
+            lgaData = (data || []).map(l => ({ id: l.id, lga: l.name }));
+        } else {
+            const { data, error: lgaError } = await supabase.rpc('get_chairmen_directory');
+            if (lgaError) console.error('Error fetching LGAs:', lgaError);
+            lgaData = data || [];
+        }
+        setLgas(lgaData);
 
         const { data: deptData, error: deptError } = await supabase
             .from('departments')
@@ -101,10 +112,11 @@ const ProjectFormPage = () => {
             if (error) throw error;
 
             if (data) {
+                setOriginalStatus(data.status || '');
                 setFormData({
                     title: data.title || '',
                     description: data.description || '',
-                    lga_id: data.lga_id || '',
+                    lga_id: (isDbRoutingEnabled() ? data.lga_ref : data.lga_id) || '',
                     department_id: data.department_id || '',
                     budget_amount: data.budget_amount || '',
                     contractor: data.contractor || '',
@@ -161,6 +173,22 @@ const ProjectFormPage = () => {
                 updated_at: new Date().toISOString()
             };
 
+            // DB routing (flag): approval state is changed ONLY by the database
+            // functions. The form never sets pending/approved/rejected itself.
+            const dbRouting = isDbRoutingEnabled();
+            const LIFECYCLE = ['ongoing', 'stalled', 'completed'];
+            if (dbRouting) {
+                // the dropdown now holds a real LGA id: save it in lga_ref and leave the old lga_id column alone
+                projectData.lga_ref = formData.lga_id || null;
+                delete projectData.lga_id;
+                if (id) {
+                    const lifecycleMove = formData.status !== originalStatus && LIFECYCLE.includes(formData.status);
+                    if (!lifecycleMove) delete projectData.status;
+                } else {
+                    projectData.status = 'planning';
+                }
+            }
+
             let projectId = id;
 
             if (id) {
@@ -186,7 +214,15 @@ const ProjectFormPage = () => {
                     projectData
                 );
 
-                if (oldData && oldData.budget_amount !== projectData.budget_amount) {
+                if (dbRouting && oldData && oldData.budget_amount !== projectData.budget_amount) {
+                    const { error: routeError } = await routeProjectForApproval(id, projectData.budget_amount || 0);
+                    if (routeError) {
+                        console.error('Error routing project for approval:', routeError);
+                        alert(`Project updated, but re-approval routing failed: ${routeError.message}`);
+                    } else {
+                        alert('Project updated! Budget change requires re-approval.');
+                    }
+                } else if (oldData && oldData.budget_amount !== projectData.budget_amount) {
                     const { needsApproval: needsApprovalResult, error: approvalCheckError } = await needsApproval(projectData.budget_amount || 0);
                     if (!approvalCheckError && needsApprovalResult) {
                         const { data: routeData, error: routeError } = await routeProjectForApproval(
@@ -226,24 +262,39 @@ const ProjectFormPage = () => {
                     insertData
                 );
 
-                const { needsApproval: needsApprovalResult, error: approvalCheckError } = await needsApproval(projectData.budget_amount || 0);
-                if (!approvalCheckError && needsApprovalResult) {
+                if (dbRouting) {
                     const { data: routeData, error: routeError } = await routeProjectForApproval(
                         projectId,
                         projectData.budget_amount || 0
                     );
                     if (routeError) {
                         console.error('Error routing project for approval:', routeError);
-                        alert('Project created but approval routing failed. Please check console.');
+                        alert(`Project created but approval routing failed: ${routeError.message}`);
+                    } else if (routeData && routeData.held) {
+                        alert(`Project created. ${routeData.message}`);
                     } else {
                         alert('Project created! Waiting for approval.');
                     }
                 } else {
-                    await supabase
-                        .from('projects')
-                        .update({ status: 'approved' })
-                        .eq('id', projectId);
-                    alert('Project created successfully!');
+                    const { needsApproval: needsApprovalResult, error: approvalCheckError } = await needsApproval(projectData.budget_amount || 0);
+                    if (!approvalCheckError && needsApprovalResult) {
+                        const { data: routeData, error: routeError } = await routeProjectForApproval(
+                            projectId,
+                            projectData.budget_amount || 0
+                        );
+                        if (routeError) {
+                            console.error('Error routing project for approval:', routeError);
+                            alert('Project created but approval routing failed. Please check console.');
+                        } else {
+                            alert('Project created! Waiting for approval.');
+                        }
+                    } else {
+                        await supabase
+                            .from('projects')
+                            .update({ status: 'approved' })
+                            .eq('id', projectId);
+                        alert('Project created successfully!');
+                    }
                 }
             }
 
@@ -560,21 +611,46 @@ const ProjectFormPage = () => {
                             {activeTab === 5 && id && (
                                 <div className="tab-content">
                                     <h3 className="section-title">Project Status</h3>
-                                    <div className="form-group">
-                                        <label>Current Status</label>
-                                        <select
-                                            name="status"
-                                            value={formData.status}
-                                            onChange={handleChange}
-                                        >
-                                            <option value="planning">Planning</option>
-                                            <option value="pending_approval">Pending Approval</option>
-                                            <option value="approved">Approved</option>
-                                            <option value="ongoing">Ongoing</option>
-                                            <option value="stalled">Stalled</option>
-                                            <option value="completed">Completed</option>
-                                        </select>
-                                    </div>
+                                    {isDbRoutingEnabled() ? (
+                                        <div className="form-group">
+                                            <label>Current Status</label>
+                                            {['approved', 'ongoing', 'stalled', 'completed'].includes(originalStatus) ? (
+                                                <select
+                                                    name="status"
+                                                    value={formData.status}
+                                                    onChange={handleChange}
+                                                >
+                                                    <option value={originalStatus}>{originalStatus}</option>
+                                                    <option value="ongoing">Ongoing</option>
+                                                    <option value="stalled">Stalled</option>
+                                                    <option value="completed">Completed</option>
+                                                </select>
+                                            ) : (
+                                                <>
+                                                    <input type="text" value={originalStatus} disabled readOnly />
+                                                    <small className="input-hint">
+                                                        Approval status is set by the approval workflow and cannot be edited here.
+                                                    </small>
+                                                </>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="form-group">
+                                            <label>Current Status</label>
+                                            <select
+                                                name="status"
+                                                value={formData.status}
+                                                onChange={handleChange}
+                                            >
+                                                <option value="planning">Planning</option>
+                                                <option value="pending_approval">Pending Approval</option>
+                                                <option value="approved">Approved</option>
+                                                <option value="ongoing">Ongoing</option>
+                                                <option value="stalled">Stalled</option>
+                                                <option value="completed">Completed</option>
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabase';
+import { isDbRoutingEnabled } from '../../services/approvalService';
 import Header from '../../components/shared/Header';
 import Footer from '../../components/shared/Footer';
 import '../../styles/reports/ProjectsReport.css';
@@ -46,8 +47,14 @@ const ProjectsReport = () => {
         // table/role, always returned empty). Now uses the same
         // get_chairmen_directory() RPC used in ProjectsPage.js and
         // ProjectFormPage.js, which reads ekiti_users correctly.
-        const { data: lgaData } = await supabase.rpc('get_chairmen_directory');
-        setLgas(lgaData || []);
+        if (isDbRoutingEnabled()) {
+            // DB routing (flag): the 16 real LGAs from the lgas table
+            const { data: lgaRows } = await supabase.from('lgas').select('id, name').eq('is_active', true).order('name');
+            setLgas((lgaRows || []).map(l => ({ id: l.id, lga: l.name })));
+        } else {
+            const { data: lgaData } = await supabase.rpc('get_chairmen_directory');
+            setLgas(lgaData || []);
+        }
     };
 
     const fetchProjects = async () => {
@@ -61,7 +68,14 @@ const ProjectsReport = () => {
             // "Error loading projects report" with all-zero summary cards.
             let query = supabase
                 .from('projects')
-                .select(`
+                .select(isDbRoutingEnabled()
+                    ? `
+                    *,
+                    department:department_id(id, name),
+                    lga:lga_id(full_name, lga),
+                    lga_row:lga_ref(name)
+                `
+                    : `
                     *,
                     department:department_id(id, name),
                     lga:lga_id(full_name, lga)
@@ -72,7 +86,7 @@ const ProjectsReport = () => {
                 query = query.eq('department_id', filters.department_id);
             }
             if (filters.lga_id) {
-                query = query.eq('lga_id', filters.lga_id);
+                query = query.eq(isDbRoutingEnabled() ? 'lga_ref' : 'lga_id', filters.lga_id);
             }
             if (filters.status) {
                 query = query.eq('status', filters.status);
@@ -308,7 +322,7 @@ const ProjectsReport = () => {
                                         <tr key={project.id}>
                                             <td><strong>{project.title}</strong></td>
                                             <td>{project.department?.name || 'N/A'}</td>
-                                            <td>{project.lga?.lga || 'N/A'}</td>
+                                            <td>{project.lga_row?.name || project.lga?.lga || 'N/A'}</td>
                                             <td>{formatCurrency(project.budget_amount)}</td>
                                             <td>
                                                 <span

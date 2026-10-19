@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
-import { getAllPendingApprovals, approveProject, rejectProject, escalateProject } from '../services/approvalService';
+import { getAllPendingApprovals, approveProject, rejectProject, escalateProject, escalateToCabinet, isDbRoutingEnabled } from '../services/approvalService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ApprovalsPage.css';
@@ -17,7 +17,11 @@ const ApprovalsPage = () => {
     const [loading, setLoading] = useState(true);
 
     const canApprove = APPROVAL_ROLES.includes(profile?.role);
-    const canEscalate = ESCALATION_ROLES.includes(profile?.role);
+    // DB routing (flag): the old per-approval Escalate is retired; the Governor can
+    // escalate a project waiting at the Governor stage to Cabinet (reason required, logged).
+    const dbRouting = isDbRoutingEnabled();
+    const canEscalate = !dbRouting && ESCALATION_ROLES.includes(profile?.role);
+    const isGovernor = profile?.role === 'governor';
 
     useEffect(() => {
         if (!user) {
@@ -106,6 +110,22 @@ const ApprovalsPage = () => {
             return;
         }
         alert('Project escalated successfully!');
+        fetchApprovals();
+    };
+
+    const handleCabinet = async (projectId) => {
+        const reason = prompt('Enter the reason for escalating this project to Cabinet:');
+        if (reason === null || !reason.trim()) {
+            alert('A reason is required to escalate to Cabinet');
+            return;
+        }
+
+        const { error } = await escalateToCabinet(projectId, reason.trim());
+        if (error) {
+            alert(error.message || 'Error escalating project to Cabinet');
+            return;
+        }
+        alert('Project escalated to Cabinet.');
         fetchApprovals();
     };
 
@@ -205,7 +225,7 @@ const ApprovalsPage = () => {
                                         </div>
                                         <div className="detail-item">
                                             <i className="fas fa-building"></i>
-                                            <span>Level: {approval.approval_level?.name || 'N/A'}</span>
+                                            <span>Level: {(dbRouting && approval.approval_level?.display_name) || approval.approval_level?.name || 'N/A'}</span>
                                         </div>
                                         <div className="detail-item">
                                             <i className="fas fa-user"></i>
@@ -217,7 +237,13 @@ const ApprovalsPage = () => {
                                         </div>
                                     </div>
 
-                                    {canApprove ? (
+                                    {dbRouting && approval.approval_level?.stage_type === 'committee' ? (
+                                        <div className="approval-actions">
+                                            <span style={{ color: '#757575', fontSize: '0.9rem' }}>
+                                                <i className="fas fa-users"></i> Decided by a committee resolution, not an individual approval
+                                            </span>
+                                        </div>
+                                    ) : canApprove ? (
                                         <div className="approval-actions">
                                             <button
                                                 className="btn-approve"
@@ -231,6 +257,14 @@ const ApprovalsPage = () => {
                                             >
                                                 <i className="fas fa-times"></i> Reject
                                             </button>
+                                            {dbRouting && isGovernor && approval.approval_level?.code === 'GOVERNOR' && (
+                                                <button
+                                                    className="btn-escalate"
+                                                    onClick={() => handleCabinet(approval.project_id)}
+                                                >
+                                                    <i className="fas fa-arrow-up"></i> Escalate to Cabinet
+                                                </button>
+                                            )}
                                             {canEscalate && (
                                                 <button
                                                     className="btn-escalate"

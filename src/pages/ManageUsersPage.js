@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
+import { isDbRoutingEnabled } from '../services/approvalService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 
@@ -23,6 +24,8 @@ const ManageUsersPage = () => {
     const [loading, setLoading] = useState(true);
     const [savingId, setSavingId] = useState(null);
     const [departments, setDepartments] = useState([]);
+    const [lgaList, setLgaList] = useState([]);
+    const dbRouting = isDbRoutingEnabled();
 
     useEffect(() => {
         if (!user) {
@@ -37,6 +40,7 @@ const ManageUsersPage = () => {
         if (profile?.is_admin) {
             fetchUsers();
             fetchDepartments();
+            if (dbRouting) fetchLgaList();
         }
     }, [user, profile]);
 
@@ -64,6 +68,26 @@ const ManageUsersPage = () => {
         setDepartments(data || []);
     };
 
+    // DB routing (flag): LGAs come from the lgas table
+    const fetchLgaList = async () => {
+        const { data } = await supabase
+            .from('lgas')
+            .select('id, name')
+            .eq('is_active', true)
+            .order('name');
+        setLgaList(data || []);
+    };
+
+    // sets the real LGA link and keeps the old text column in step with it
+    const handleLgaChange = (userId, lgaId) => {
+        const match = lgaList.find(l => l.id === lgaId);
+        setUsers(prev =>
+            prev.map(u => (u.id === userId
+                ? { ...u, lga_ref: lgaId || null, lga: match ? match.name : null }
+                : u))
+        );
+    };
+
     const handleFieldChange = (userId, field, value) => {
         setUsers(prev =>
             prev.map(u => (u.id === userId ? { ...u, [field]: value } : u))
@@ -79,6 +103,7 @@ const ManageUsersPage = () => {
             .update({
                 role: target.role,
                 lga: target.lga,
+                ...(dbRouting ? { lga_ref: target.lga_ref || null } : {}),
                 department_id: target.department_id || null,
                 is_admin: target.is_admin,
                 is_active: target.is_active,
@@ -153,13 +178,26 @@ const ManageUsersPage = () => {
                                             </select>
                                         </td>
                                         <td style={{ padding: '0.6rem 0.8rem' }}>
-                                            <input
-                                                type="text"
-                                                value={u.lga || ''}
-                                                onChange={(e) => handleFieldChange(u.id, 'lga', e.target.value)}
-                                                placeholder="e.g. Ado-Ekiti"
-                                                style={{ padding: '0.3rem', borderRadius: 6, border: '1px solid #ccc', width: 120 }}
-                                            />
+                                            {dbRouting ? (
+                                                <select
+                                                    value={u.lga_ref || ''}
+                                                    onChange={(e) => handleLgaChange(u.id, e.target.value)}
+                                                    style={{ padding: '0.3rem', borderRadius: 6, border: '1px solid #ccc', width: 150 }}
+                                                >
+                                                    <option value="">None</option>
+                                                    {lgaList.map(l => (
+                                                        <option key={l.id} value={l.id}>{l.name}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    value={u.lga || ''}
+                                                    onChange={(e) => handleFieldChange(u.id, 'lga', e.target.value)}
+                                                    placeholder="e.g. Ado-Ekiti"
+                                                    style={{ padding: '0.3rem', borderRadius: 6, border: '1px solid #ccc', width: 120 }}
+                                                />
+                                            )}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.8rem' }}>
                                             <select

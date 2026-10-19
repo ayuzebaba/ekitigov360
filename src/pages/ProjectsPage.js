@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { departmentService } from '../services/departmentService';
+import { isDbRoutingEnabled } from '../services/approvalService';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ProjectsPage.css';
@@ -33,7 +34,14 @@ const ProjectsPage = () => {
         try {
             let query = supabase
                 .from('projects')
-                .select(`
+                .select(isDbRoutingEnabled()
+                    ? `
+                    *,
+                    lga:lga_id(full_name, lga),
+                    lga_row:lga_ref(name),
+                    department:department_id(id, name)
+                `
+                    : `
                     *,
                     lga:lga_id(full_name, lga),
                     department:department_id(id, name)
@@ -41,7 +49,7 @@ const ProjectsPage = () => {
                 .order('created_at', { ascending: false });
 
             if (filters.status) query = query.eq('status', filters.status);
-            if (filters.lga_id) query = query.eq('lga_id', filters.lga_id);
+            if (filters.lga_id) query = query.eq(isDbRoutingEnabled() ? 'lga_ref' : 'lga_id', filters.lga_id);
             if (filters.search) {
                 query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
             }
@@ -61,6 +69,12 @@ const ProjectsPage = () => {
         // FIXED: was querying `profiles` for role = 'chairman' (stale
         // table/role). Now uses a security-definer RPC that reads
         // ekiti_users for role = 'executive_chairman' instead.
+        if (isDbRoutingEnabled()) {
+            // DB routing (flag): the 16 real LGAs from the lgas table
+            const { data } = await supabase.from('lgas').select('id, name').eq('is_active', true).order('name');
+            setLgas((data || []).map(l => ({ id: l.id, lga: l.name })));
+            return;
+        }
         const { data } = await supabase.rpc('get_chairmen_directory');
         setLgas(data || []);
     };
@@ -230,7 +244,7 @@ const ProjectsPage = () => {
                                     <div className="project-details">
                                         <div className="detail-item">
                                             <i className="fas fa-map-marker-alt"></i>
-                                            <span>{project.lga?.lga || 'N/A'} LGA</span>
+                                            <span>{project.lga_row?.name || project.lga?.lga || 'N/A'} LGA</span>
                                         </div>
                                         <div className="detail-item">
                                             <i className="fas fa-building"></i>

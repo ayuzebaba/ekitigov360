@@ -1,6 +1,36 @@
 import { supabase } from './supabase';
 import { auditService } from './auditService';
 
+// ---------------------------------------------------------------------
+// DB-ROUTING FEATURE FLAG
+// When REACT_APP_DB_ROUTING === 'true', routing / approve / reject are done
+// by the database functions from Migration 03 (permission checks, locking,
+// audit and committee rules all happen inside the database).
+// When the flag is off (the default) the original code below runs unchanged.
+// The flag is read at build time; turn it on only after Migration 04 is live.
+// ---------------------------------------------------------------------
+const USE_DB_ROUTING = process.env.REACT_APP_DB_ROUTING === 'true';
+
+const rpcResult = async (fn, args) => {
+    const { data, error } = await supabase.rpc(fn, args);
+    if (error) return { data: null, error: new Error(error.message || 'Request failed') };
+    return { data, error: null };
+};
+
+export const isDbRoutingEnabled = () => USE_DB_ROUTING;
+
+// Read-only: which route would this amount / LGA take? (for UI previews)
+export const previewRoute = (amount, lgaRef = null) =>
+    rpcResult('preview_route', { p_amount: amount, p_lga_ref: lgaRef });
+
+// Governor-only: manual escalation to Cabinet, with a mandatory reason (logged).
+export const escalateToCabinet = (projectId, reason) =>
+    rpcResult('escalate_to_cabinet', { p_project_id: projectId, p_reason: reason });
+
+// Admin-only: switch the active rule set, with a mandatory reason (logged).
+export const setActiveRuleSet = (ruleSet, reason) =>
+    rpcResult('set_active_rule_set', { p_rule_set: ruleSet, p_reason: reason });
+
 // Get approval levels
 export const getApprovalLevels = async () => {
     const { data, error } = await supabase
@@ -219,6 +249,9 @@ const authorizeApprovalAction = async (approvalId, requiredRoles) => {
 // in the computed chain (e.g. Director approving before Chairman), this
 // advances the project to the next stage instead of finalizing it.
 export const approveProject = async (approvalId, comments = '') => {
+    if (USE_DB_ROUTING) {
+        return rpcResult('decide_stage', { p_approval_id: approvalId, p_decision: 'approve', p_comments: comments });
+    }
     try {
         const { authUserId, projectId, budgetAmount, currentLevelName } =
             await authorizeApprovalAction(approvalId, APPROVAL_ROLES);
@@ -350,6 +383,9 @@ const advanceToNextStage = async (projectId, levelName, actingUserId) => {
 
 // Reject a project — role-gated and self-approval-blocked
 export const rejectProject = async (approvalId, comments = '') => {
+    if (USE_DB_ROUTING) {
+        return rpcResult('decide_stage', { p_approval_id: approvalId, p_decision: 'reject', p_comments: comments });
+    }
     try {
         const { authUserId, projectId } = await authorizeApprovalAction(approvalId, APPROVAL_ROLES);
 
@@ -391,6 +427,11 @@ export const rejectProject = async (approvalId, comments = '') => {
 
 // Escalate a project — role-gated and self-approval-blocked
 export const escalateProject = async (approvalId, comments = '') => {
+    if (USE_DB_ROUTING) {
+        // The old per-approval Escalate is retired under DB routing. Escalation is
+        // Governor -> Cabinet only, per project, with a reason: use escalateToCabinet().
+        return { data: null, error: new Error('Use "Escalate to Cabinet" (Governor only) under the new routing.') };
+    }
     try {
         const { authUserId, projectId } = await authorizeApprovalAction(approvalId, ESCALATION_ROLES);
 
@@ -440,6 +481,11 @@ export const escalateProject = async (approvalId, comments = '') => {
 // the original source document. Falls back to the old single-level
 // behavior for the HOD tier, which this feature doesn't touch.
 export const routeProjectForApproval = async (projectId, budgetAmount) => {
+    if (USE_DB_ROUTING) {
+        const { data, error } = await rpcResult('start_project_routing', { p_project_id: projectId, p_tier_override: null, p_reason: null });
+        if (error) return { error };
+        return { data, level: { name: data?.stage } };
+    }
     try {
         const chain = await computeApprovalChain(budgetAmount);
 
