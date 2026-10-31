@@ -13,7 +13,6 @@ const ProjectFormPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    const [activeTab, setActiveTab] = useState(1);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
     const [lgas, setLgas] = useState([]);
@@ -335,14 +334,6 @@ const ProjectFormPage = () => {
         }
     };
 
-    const nextTab = () => {
-        if (activeTab < 5) setActiveTab(activeTab + 1);
-    };
-
-    const prevTab = () => {
-        if (activeTab > 1) setActiveTab(activeTab - 1);
-    };
-
     if (fetching) {
         return (
             <div className="form-page">
@@ -377,44 +368,9 @@ const ProjectFormPage = () => {
                             </p>
                         </div>
 
-                        <div className="form-tabs">
-                            <button
-                                className={`tab-btn ${activeTab === 1 ? 'active' : ''}`}
-                                onClick={() => setActiveTab(1)}
-                            >
-                                <i className="fas fa-info-circle"></i> Basic Info
-                            </button>
-                            <button
-                                className={`tab-btn ${activeTab === 2 ? 'active' : ''}`}
-                                onClick={() => setActiveTab(2)}
-                            >
-                                <i className="fas fa-coins"></i> Budget
-                            </button>
-                            <button
-                                className={`tab-btn ${activeTab === 3 ? 'active' : ''}`}
-                                onClick={() => setActiveTab(3)}
-                            >
-                                <i className="fas fa-map-marker-alt"></i> Location
-                            </button>
-                            <button
-                                className={`tab-btn ${activeTab === 4 ? 'active' : ''}`}
-                                onClick={() => setActiveTab(4)}
-                            >
-                                <i className="fas fa-file-pdf"></i> Documents
-                            </button>
-                            {id && (
-                                <button
-                                    className={`tab-btn ${activeTab === 5 ? 'active' : ''}`}
-                                    onClick={() => setActiveTab(5)}
-                                >
-                                    <i className="fas fa-tasks"></i> Status
-                                </button>
-                            )}
-                        </div>
-
                         <form onSubmit={handleSubmit}>
-                            {activeTab === 1 && (
-                                <div className="tab-content">
+                            {(
+                                <div className="tab-content" style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', minHeight: 0, height: 'auto' }}>
                                     <h3 className="section-title">Basic Information</h3>
 
                                     <div className="form-group">
@@ -477,8 +433,8 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {activeTab === 2 && (
-                                <div className="tab-content">
+                            {(
+                                <div className="tab-content" style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', minHeight: 0, height: 'auto' }}>
                                     <h3 className="section-title">Budget & Contractor</h3>
 
                                     <div className="form-row">
@@ -534,8 +490,8 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {activeTab === 3 && (
-                                <div className="tab-content">
+                            {(
+                                <div className="tab-content" style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', minHeight: 0, height: 'auto' }}>
                                     <h3 className="section-title">Location Details</h3>
 
                                     <div className="form-row">
@@ -590,8 +546,8 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {activeTab === 4 && (
-                                <div className="tab-content">
+                            {(
+                                <div className="tab-content" style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', minHeight: 0, height: 'auto' }}>
                                     <h3 className="section-title">Documents</h3>
 
                                     <div className="form-group">
@@ -608,8 +564,8 @@ const ProjectFormPage = () => {
                                 </div>
                             )}
 
-                            {activeTab === 5 && id && (
-                                <div className="tab-content">
+                            {id && (
+                                <div className="tab-content" style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', minHeight: 0, height: 'auto' }}>
                                     <h3 className="section-title">Project Status</h3>
                                     {isDbRoutingEnabled() ? (
                                         <div className="form-group">
@@ -655,17 +611,7 @@ const ProjectFormPage = () => {
                             )}
 
                             <div className="tab-navigation">
-                                <div>
-                                    {activeTab > 1 && (
-                                        <button
-                                            type="button"
-                                            className="btn-outline"
-                                            onClick={prevTab}
-                                        >
-                                            <i className="fas fa-arrow-left"></i> Previous
-                                        </button>
-                                    )}
-                                </div>
+                                <div></div>
                                 <div style={{ display: 'flex', gap: '1rem' }}>
                                     <button
                                         type="button"
@@ -674,33 +620,23 @@ const ProjectFormPage = () => {
                                     >
                                         Cancel
                                     </button>
-                                    {activeTab < (id ? 5 : 4) ? (
-                                        <button
-                                            type="button"
-                                            className="btn-primary"
-                                            onClick={nextTab}
-                                        >
-                                            Next <i className="fas fa-arrow-right"></i>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            type="submit"
-                                            className="btn-primary"
-                                            disabled={loading}
-                                        >
-                                            {loading ? (
-                                                <>
-                                                    <i className="fas fa-spinner fa-spin"></i>
-                                                    {id ? 'Updating...' : 'Creating...'}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <i className={`fas ${id ? 'fa-save' : 'fa-check-circle'}`}></i>
-                                                    {id ? 'Update Project' : 'Create Project'}
-                                                </>
-                                            )}
-                                        </button>
-                                    )}
+                                    <button
+                                        type="submit"
+                                        className="btn-primary"
+                                        disabled={loading}
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <i className="fas fa-spinner fa-spin"></i>
+                                                {id ? 'Updating...' : 'Creating...'}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className={`fas ${id ? 'fa-save' : 'fa-check-circle'}`}></i>
+                                                {id ? 'Update Project' : 'Create Project'}
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             </div>
                         </form>
