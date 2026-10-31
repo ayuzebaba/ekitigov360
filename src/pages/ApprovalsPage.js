@@ -23,6 +23,30 @@ const ApprovalsPage = () => {
     const canEscalate = !dbRouting && ESCALATION_ROLES.includes(profile?.role);
     const isGovernor = profile?.role === 'governor';
 
+    // DB routing (flag): show Approve/Reject only where the database would accept them.
+    // The database still enforces all of this; this only hides buttons that would be refused.
+    const ROLE_NAMES = {
+        department_staff: 'Department Staff',
+        lg_legislative: 'LG Legislative (Director)',
+        executive_chairman: 'Executive Chairman',
+        mda_oversight: 'MDA Oversight',
+        governor: 'Governor',
+    };
+    const actionBlocker = (approval) => {
+        const lvl = approval.approval_level;
+        if (!lvl) return null;
+        if (lvl.stage_type === 'committee') return null; // handled separately
+        if (!lvl.required_role) return 'No approving role is configured for this stage.';
+        if (lvl.required_role === 'department_staff') return 'Waiting for the Head of Department (no HOD is designated yet).';
+        if (profile?.role !== lvl.required_role) {
+            return 'Waiting for: ' + (ROLE_NAMES[lvl.required_role] || lvl.required_role);
+        }
+        if (lvl.stage_type !== 'joint' && approval.project?.created_by === user?.id) {
+            return 'You submitted this project, so someone else must decide it.';
+        }
+        return null;
+    };
+
     useEffect(() => {
         if (!user) {
             navigate('/login');
@@ -243,7 +267,7 @@ const ApprovalsPage = () => {
                                                 <i className="fas fa-users"></i> Decided by a committee resolution, not an individual approval
                                             </span>
                                         </div>
-                                    ) : canApprove ? (
+                                    ) : (dbRouting ? (canApprove && !actionBlocker(approval)) : canApprove) ? (
                                         <div className="approval-actions">
                                             <button
                                                 className="btn-approve"
@@ -277,7 +301,7 @@ const ApprovalsPage = () => {
                                     ) : (
                                         <div className="approval-actions">
                                             <span style={{ color: '#757575', fontSize: '0.9rem' }}>
-                                                <i className="fas fa-lock"></i> View only — your role cannot act on approvals
+                                                <i className="fas fa-lock"></i> {dbRouting && canApprove && actionBlocker(approval) ? actionBlocker(approval) : 'View only — your role cannot act on approvals'}
                                             </span>
                                         </div>
                                     )}
