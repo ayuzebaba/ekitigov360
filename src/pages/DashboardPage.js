@@ -132,7 +132,7 @@ const DashboardPage = () => {
 
         setLoading(true);
         try {
-            const { data: projects } = await supabase.from('projects').select('*');
+            const { data: projects } = await supabase.from('projects').select('*, lga_row:lga_ref(name)');
 
             if (projects) {
                 setStats({
@@ -410,7 +410,7 @@ const DashboardPage = () => {
                                             <div className="project-info">
                                                 <h4>{project.title}</h4>
                                                 <p className="project-meta">
-                                                    <span><i className="fas fa-map-marker-alt"></i> {project.lga || 'N/A'}</span>
+                                                    <span><i className="fas fa-map-marker-alt"></i> {project.lga_row?.name || project.lga || 'N/A'}</span>
                                                     <span><i className="fas fa-tag"></i> {project.status}</span>
                                                 </p>
                                             </div>
