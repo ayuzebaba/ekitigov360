@@ -41,7 +41,8 @@ const ProjectDetailPage = () => {
                 .from('projects')
                 .select(`
                     *,
-                    lga:lga_id(id, full_name, lga)
+                    lga:lga_id(id, full_name, lga),
+                    lga_row:lga_ref(name)
                 `)
                 .eq('id', id)
                 .single();
@@ -295,7 +296,10 @@ const ProjectDetailPage = () => {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Not set';
-        return new Date(dateString).toLocaleDateString('en-US', {
+        // Date-only values (YYYY-MM-DD) are read as local dates so they do not shift a day.
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString));
+        const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateString);
+        return d.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -468,7 +472,7 @@ const ProjectDetailPage = () => {
                                         <h3><i className="fas fa-building"></i> Responsibility</h3>
                                         <div className="info-row">
                                             <span className="info-label">LGA:</span>
-                                            <span className="info-value">{project.lga?.lga || project.lga?.full_name || 'Not assigned'}</span>
+                                            <span className="info-value">{project.lga?.lga || project.lga?.full_name || project.lga_row?.name || 'Not assigned'}</span>
                                         </div>
                                         <div className="info-row">
                                             <span className="info-label">MDA:</span>
