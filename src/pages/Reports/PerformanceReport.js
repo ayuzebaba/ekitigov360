@@ -44,6 +44,7 @@ const PerformanceReport = () => {
                     lga:lga_id(full_name, lga),
                     department:department_id(id, name)
                 `)
+                .eq('is_demo', false)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;

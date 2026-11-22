@@ -224,7 +224,12 @@ const ProjectsPage = () => {
                                 <div key={project.id} className="project-card">
                                     <div className="project-card-header">
                                         <div className="project-title-section">
-                                            <h3>{project.title}</h3>
+                                            <h3>
+                                                {project.title}
+                                                {project.is_demo && (
+                                                    <span style={{ marginLeft: 8, background: '#fff8e1', color: '#8a6d00', borderRadius: 999, padding: '0.1rem 0.6rem', fontSize: '0.7rem', fontWeight: 700 }}>DEMO</span>
+                                                )}
+                                            </h3>
                                             <span
                                                 className="project-status-badge"
                                                 style={{

@@ -36,7 +36,7 @@ const DepartmentSummary = () => {
                     id,
                     name,
                     description,
-                    projects:projects(id, budget_amount, status, completion_percentage)
+                    projects:projects(id, budget_amount, status, completion_percentage, is_demo)
                 `)
                 .order('name');
 
@@ -44,7 +44,7 @@ const DepartmentSummary = () => {
 
             // Process department data
             const processed = (deptData || []).map(dept => {
-                const projects = dept.projects || [];
+                const projects = (dept.projects || []).filter(p => !p.is_demo);
                 const totalProjects = projects.length;
                 const totalBudget = projects.reduce((sum, p) => sum + (p.budget_amount || 0), 0);
                 const completed = projects.filter(p => p.status === 'completed').length;

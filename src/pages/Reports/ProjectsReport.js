@@ -80,6 +80,7 @@ const ProjectsReport = () => {
                     department:department_id(id, name),
                     lga:lga_id(full_name, lga)
                 `)
+                .eq('is_demo', false)   // demo projects never appear in reports
                 .order('created_at', { ascending: false });
 
             if (filters.department_id) {

@@ -45,6 +45,13 @@ const AdminHubPage = () => {
             color: '#1976d2',
             path: '/admin/thresholds',
         },
+        {
+            title: 'Committees',
+            description: 'Set each committee\'s quorum, seat holders, and the approval limits for the committee process.',
+            icon: 'fa-users',
+            color: '#7b1fa2',
+            path: '/admin/committees',
+        },
     ];
 
     return (

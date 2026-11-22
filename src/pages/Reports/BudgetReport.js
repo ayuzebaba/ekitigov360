@@ -47,6 +47,7 @@ const BudgetReport = () => {
                     status,
                     department:department_id(id, name)
                 `)
+                .eq('is_demo', false)
                 .order('budget_amount', { ascending: false });
 
             if (error) throw error;

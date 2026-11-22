@@ -24,6 +24,8 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ManageUsersPage from './pages/ManageUsersPage';
 import ManageThresholdsPage from './pages/ManageThresholdsPage';
+import ManageCommitteesPage from './pages/ManageCommitteesPage';
+import RecorderMeetingsPage from './pages/RecorderMeetingsPage';
 import AdminHubPage from './pages/AdminHubPage';
 
 const ProtectedRoute = ({ children }) => {
@@ -71,6 +73,8 @@ function App() {
                     <Route path="/admin" element={<ProtectedRoute><AdminHubPage /></ProtectedRoute>} />
                     <Route path="/admin/users" element={<ProtectedRoute><ManageUsersPage /></ProtectedRoute>} />
                     <Route path="/admin/thresholds" element={<ProtectedRoute><ManageThresholdsPage /></ProtectedRoute>} />
+                    <Route path="/admin/committees" element={<ProtectedRoute><ManageCommitteesPage /></ProtectedRoute>} />
+                    <Route path="/committee/meetings" element={<ProtectedRoute><RecorderMeetingsPage /></ProtectedRoute>} />
                 </Routes>
             </Router>
         </AuthProvider>

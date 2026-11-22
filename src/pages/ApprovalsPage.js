@@ -92,9 +92,17 @@ const ApprovalsPage = () => {
         }
     };
 
-    const handleApprove = async (approvalId) => {
-        const comments = prompt('Enter approval comments (optional):');
+    const handleApprove = async (approvalId, stageType) => {
+        // MoLGA (review and forward) must record a note on the availability of funds.
+        const needsFundsNote = stageType === 'review_forward';
+        const comments = prompt(needsFundsNote
+            ? 'Forwarding to the Governor. Enter a note on the availability of funds (required):'
+            : 'Enter approval comments (optional):');
         if (comments === null) return;
+        if (needsFundsNote && comments.trim().length < 15) {
+            alert('A funds-availability note of at least 15 characters is required before forwarding.');
+            return;
+        }
 
         const { error } = await approveProject(approvalId, comments || 'Approved');
         if (error) {
@@ -266,12 +274,18 @@ const ApprovalsPage = () => {
                                             <span style={{ color: '#757575', fontSize: '0.9rem' }}>
                                                 <i className="fas fa-users"></i> Decided by a committee resolution, not an individual approval
                                             </span>
+                                            <button
+                                                className="btn-approve"
+                                                onClick={() => navigate('/committee/meetings')}
+                                            >
+                                                <i className="fas fa-gavel"></i> Committee meetings
+                                            </button>
                                         </div>
                                     ) : (dbRouting ? (canApprove && !actionBlocker(approval)) : canApprove) ? (
                                         <div className="approval-actions">
                                             <button
                                                 className="btn-approve"
-                                                onClick={() => handleApprove(approval.id)}
+                                                onClick={() => handleApprove(approval.id, approval.approval_level?.stage_type)}
                                             >
                                                 <i className="fas fa-check"></i> Approve
                                             </button>

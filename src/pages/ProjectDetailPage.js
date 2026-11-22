@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { departmentService } from '../services/departmentService';
+import DecisionHistory from '../components/DecisionHistory';
 import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ProjectDetailPage.css';
 
 const ProjectDetailPage = () => {
     const { id } = useParams();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const navigate = useNavigate();
     const [project, setProject] = useState(null);
     const [updates, setUpdates] = useState([]);
@@ -123,6 +124,45 @@ const ProjectDetailPage = () => {
         } finally {
             setUpdatingStatus(false);
         }
+    };
+
+    // Budget changes on a submitted project go through the database, which sends the
+    // project back for review. A reason is required and the change is logged.
+    const handleChangeBudget = async () => {
+        const raw = prompt('Enter the new budget in naira. The project will be sent back for review and must be submitted again:');
+        if (raw === null) return;
+        const amount = Number(String(raw).replace(/[^0-9.]/g, ''));
+        if (!amount || amount <= 0) {
+            alert('Enter a valid amount above zero.');
+            return;
+        }
+        const reason = prompt('Reason for the budget change (required):');
+        if (reason === null || !reason.trim()) {
+            alert('A reason is required.');
+            return;
+        }
+        const { error } = await supabase.rpc('change_project_budget', {
+            p_project_id: id, p_new_amount: amount, p_reason: reason.trim()
+        });
+        if (error) {
+            alert(error.message || 'Could not change the budget');
+            return;
+        }
+        alert('Budget changed. The project is returned and must be submitted for approval again.');
+        await fetchProjectDetails();
+    };
+
+    const handleResubmit = async () => {
+        if (!window.confirm('Submit this project for approval again?')) return;
+        const { error } = await supabase.rpc('start_project_routing', {
+            p_project_id: id, p_tier_override: null, p_reason: null
+        });
+        if (error) {
+            alert(error.message || 'Could not submit the project');
+            return;
+        }
+        alert('Project submitted for approval.');
+        await fetchProjectDetails();
     };
 
     const handleDelete = async () => {
@@ -282,6 +322,8 @@ const ProjectDetailPage = () => {
         ).join(' ');
     };
 
+    const canManage = !!project && (project.created_by === user?.id || !!profile?.is_admin);
+
     if (loading) {
         return (
             <div className="detail-page">
@@ -333,6 +375,16 @@ const ProjectDetailPage = () => {
                             <i className="fas fa-arrow-left"></i> Back to Projects
                         </button>
                         <div className="action-buttons">
+                            {canManage && ['pending_approval', 'approved', 'ongoing', 'stalled'].includes(project.status) && (
+                                <button className="btn-outline" onClick={handleChangeBudget}>
+                                    <i className="fas fa-coins"></i> Change budget
+                                </button>
+                            )}
+                            {canManage && project.status === 'returned' && (
+                                <button className="btn-outline" onClick={handleResubmit}>
+                                    <i className="fas fa-paper-plane"></i> Submit for approval
+                                </button>
+                            )}
                             <button
                                 className="btn-outline"
                                 onClick={() => navigate(`/projects/edit/${id}`)}
@@ -387,6 +439,12 @@ const ProjectDetailPage = () => {
                             onClick={() => setActiveTab('details')}
                         >
                             <i className="fas fa-info-circle"></i> Details
+                        </button>
+                        <button
+                            className={`tab-btn ${activeTab === 'approvals' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('approvals')}
+                        >
+                            <i className="fas fa-clipboard-check"></i> Approvals
                         </button>
                         <button
                             className={`tab-btn ${activeTab === 'updates' ? 'active' : ''}`}
@@ -495,6 +553,15 @@ const ProjectDetailPage = () => {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'approvals' && (
+                            <div className="updates-tab">
+                                <div className="updates-header">
+                                    <h3><i className="fas fa-clipboard-check"></i> Approval history</h3>
+                                </div>
+                                <DecisionHistory projectId={id} />
                             </div>
                         )}
 

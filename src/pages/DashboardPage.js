@@ -132,7 +132,9 @@ const DashboardPage = () => {
 
         setLoading(true);
         try {
-            const { data: projects } = await supabase.from('projects').select('*, lga_row:lga_ref(name)');
+            const { data: allProjects } = await supabase.from('projects').select('*, lga_row:lga_ref(name)');
+            // Demo projects (committee-process testing) are never counted in real figures.
+            const projects = (allProjects || []).filter(p => !p.is_demo);
 
             if (projects) {
                 setStats({
