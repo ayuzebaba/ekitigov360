@@ -7,7 +7,8 @@ import Header from '../components/shared/Header';
 import Footer from '../components/shared/Footer';
 import '../styles/ApprovalsPage.css';
 
-const APPROVAL_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight', 'governor'];
+// department_staff is included so the Head of Department and the Recorder (committee seats) can reach Approvals.
+const APPROVAL_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight', 'governor', 'department_staff'];
 const ESCALATION_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight'];
 
 const ApprovalsPage = () => {
@@ -37,7 +38,8 @@ const ApprovalsPage = () => {
         if (!lvl) return null;
         if (lvl.stage_type === 'committee') return null; // handled separately
         if (!lvl.required_role) return 'No approving role is configured for this stage.';
-        if (lvl.required_role === 'department_staff') return 'Waiting for the Head of Department (no HOD is designated yet).';
+        // Head of Department stage: only a Department Staff account can act; the database checks the HOD seat.
+        if (lvl.required_role === 'department_staff' && profile?.role !== 'department_staff') return 'Waiting for the Head of Department.';
         if (profile?.role !== lvl.required_role) {
             return 'Waiting for: ' + (ROLE_NAMES[lvl.required_role] || lvl.required_role);
         }

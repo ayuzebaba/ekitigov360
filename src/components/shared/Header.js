@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import '../../styles/Header.css';
 
 // Roles authorized to act on approvals — must match approvalService.js
-const APPROVAL_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight', 'governor'];
+// department_staff is included so the Head of Department and the Recorder (committee seats) can reach Approvals.
+const APPROVAL_ROLES = ['lg_legislative', 'executive_chairman', 'mda_oversight', 'governor', 'department_staff'];
 
 const ROLE_LABELS = {
     citizen: 'Citizen',
