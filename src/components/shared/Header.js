@@ -84,6 +84,11 @@ const Header = () => {
                                 <span className="user-name">
                                     <i className="fas fa-user-circle"></i>
                                     {roleLabel}
+                                    {profile?.username && (
+                                        <span style={{ marginLeft: 6, fontSize: '0.75rem', opacity: 0.65 }}>
+                                            ({profile.username})
+                                        </span>
+                                    )}
                                     {profile?.is_admin && (
                                         <span style={{
                                             marginLeft: 6,
