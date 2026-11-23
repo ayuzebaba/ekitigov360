@@ -16,6 +16,15 @@ const ApprovalsPage = () => {
     const navigate = useNavigate();
     const [approvals, setApprovals] = useState([]);
     const [loading, setLoading] = useState(true);
+    // Only a committee Recorder can open the meetings page; everyone else sees the button greyed out.
+    const [isRecorder, setIsRecorder] = useState(false);
+
+    useEffect(() => {
+        if (!profile?.id) return;
+        supabase.from('committee_seats').select('id')
+            .eq('holder_user_id', profile.id).eq('can_record', true).eq('is_active', true).limit(1)
+            .then(({ data }) => setIsRecorder(!!(data && data.length)));
+    }, [profile?.id]);
 
     const canApprove = APPROVAL_ROLES.includes(profile?.role);
     // DB routing (flag): the old per-approval Escalate is retired; the Governor can
@@ -278,7 +287,10 @@ const ApprovalsPage = () => {
                                             </span>
                                             <button
                                                 className="btn-approve"
-                                                onClick={() => navigate('/committee/meetings')}
+                                                disabled={!isRecorder}
+                                                title={isRecorder ? '' : 'Only the committee Recorder can open committee meetings'}
+                                                style={isRecorder ? undefined : { opacity: 0.45, cursor: 'not-allowed' }}
+                                                onClick={() => isRecorder && navigate('/committee/meetings')}
                                             >
                                                 <i className="fas fa-gavel"></i> Committee meetings
                                             </button>
